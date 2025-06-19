@@ -1,6 +1,6 @@
 import requests
 
-APP_URL = "http://YOUR_VM_EXTERNAL_IP:8080/"
+APP_URL = "http://34.123.45.67:8080/"
 
 def test_deployment():
     try:
