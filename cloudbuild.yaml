@@ -1,0 +1,18 @@
+steps:
+- name: 'python'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      pip install requests --quiet
+      python test/test_deploy.py || exit 1
+
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      chmod +x deploy.sh
+      ./deploy.sh
+
+timeout: 900s
