@@ -1,17 +1,14 @@
-#!/bin/bash
-set -ex
-trap 'echo "❌ Deployment failed!"' ERR
-
 VM_NAME="web-server"
 ZONE="us-central1-a"
+OSLOGIN_USER="ashweryaverma_gmail_com"
 
-OSLOGIN_USER=$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')
+EXTERNAL_IP=$(gcloud compute instances describe ${VM_NAME} --zone ${ZONE} --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
 
 echo "📦 Copying app files to VM..."
-gcloud compute scp --tunnel-through-iap --recurse app/ ${OSLOGIN_USER}@${VM_NAME}:/home/${OSLOGIN_USER}/app --zone ${ZONE}
+gcloud compute scp --recurse app/ ${OSLOGIN_USER}@${EXTERNAL_IP}:/home/${OSLOGIN_USER}/app --zone ${ZONE}
 
 echo "🚀 Running app on VM..."
-gcloud compute ssh --tunnel-through-iap ${OSLOGIN_USER}@${VM_NAME} --zone ${ZONE} --command "
+gcloud compute ssh ${OSLOGIN_USER}@${EXTERNAL_IP} --zone ${ZONE} --command "
   sudo pkill -f 'python3 /home/${OSLOGIN_USER}/app/main.py' || true
   nohup python3 /home/${OSLOGIN_USER}/app/main.py > app.log 2>&1 &
 "
