@@ -1,6 +1,6 @@
 import requests
 
-APP_URL = "http://http://34.56.139.36/:80/"
+APP_URL = "http://34.56.139.36:80"
 
 def test_deployment():
     try:
