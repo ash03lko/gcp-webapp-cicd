@@ -1,3 +1,7 @@
+#!/bin/bash
+set -ex
+trap 'echo "❌ Deployment failed!"' ERR
+
 VM_NAME="web-server"
 ZONE="us-central1-a"
 OSLOGIN_USER="ashweryaverma_gmail_com"
