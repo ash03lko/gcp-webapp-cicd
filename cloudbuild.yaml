@@ -4,7 +4,7 @@ steps:
   args:
     - '-c'
     - |
-      pip install requests --quiet
+      pip install requests numpy --quiet
       python test/test_deploy.py || exit 1
 
 - name: 'gcr.io/cloud-builders/gcloud'
@@ -15,7 +15,7 @@ steps:
       chmod +x deploy.sh
       ./deploy.sh
 
-timeout: 100s
+timeout: 600s
 
 options:
   logging: CLOUD_LOGGING_ONLY
