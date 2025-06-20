@@ -5,14 +5,13 @@ trap 'echo "❌ Deployment failed!"' ERR
 VM_NAME="web-server"
 ZONE="us-central1-a"
 
-# Let gcloud pick the right OS Login identity
 OSLOGIN_USER=$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')
 
 echo "📦 Copying app files to VM..."
-gcloud compute scp --recurse app/ ${OSLOGIN_USER}@${VM_NAME}:/home/${OSLOGIN_USER}/app --zone ${ZONE}
+gcloud compute scp --tunnel-through-iap --recurse app/ ${OSLOGIN_USER}@${VM_NAME}:/home/${OSLOGIN_USER}/app --zone ${ZONE}
 
 echo "🚀 Running app on VM..."
-gcloud compute ssh ${OSLOGIN_USER}@${VM_NAME} --zone ${ZONE} --command "
+gcloud compute ssh --tunnel-through-iap ${OSLOGIN_USER}@${VM_NAME} --zone ${ZONE} --command "
   sudo pkill -f 'python3 /home/${OSLOGIN_USER}/app/main.py' || true
   nohup python3 /home/${OSLOGIN_USER}/app/main.py > app.log 2>&1 &
 "
