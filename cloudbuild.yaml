@@ -1,21 +1,45 @@
 steps:
-- name: 'python'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      pip install requests numpy --quiet
-      python test/test_deploy.py || exit 1
+  # ✅ Build the Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+        '.'
+      ]
 
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      chmod +x deploy.sh
-      ./deploy.sh
+  # ✅ Push the image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+      ]
 
-timeout: 600s
+  # ✅ (Optional) Run tests
+  - name: 'python'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        pip install requests numpy --quiet
+        python test/test_deploy.py || exit 1
+
+  # ✅ (Optional) Deploy to VM via SSH or using gcloud commands
+  # You can replace this with gcloud run deploy, gke deploy, or other targets
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        chmod +x deploy.sh
+        ./deploy.sh
+
+images:
+  - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+
+timeout: 900s
 
 options:
   logging: CLOUD_LOGGING_ONLY
