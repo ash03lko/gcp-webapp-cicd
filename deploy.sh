@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-VM_NAME="my-web-vm"
+VM_NAME="web-server"
 ZONE="us-central1-a"
 
 echo "📦 Copying app files to VM..."
