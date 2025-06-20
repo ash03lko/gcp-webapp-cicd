@@ -4,7 +4,9 @@ trap 'echo "❌ Deployment failed!"' ERR
 
 VM_NAME="web-server"
 ZONE="us-central1-a"
-OSLOGIN_USER="ashweryaverma_gmail_com"
+
+# Let gcloud pick the right OS Login identity
+OSLOGIN_USER=$(gcloud compute os-login describe-profile --format='value(posixAccounts[0].username)')
 
 echo "📦 Copying app files to VM..."
 gcloud compute scp --recurse app/ ${OSLOGIN_USER}@${VM_NAME}:/home/${OSLOGIN_USER}/app --zone ${ZONE}
