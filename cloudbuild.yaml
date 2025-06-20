@@ -26,8 +26,7 @@ steps:
         pip install requests numpy --quiet
         python test/test_deploy.py || exit 1
 
-  # ✅ (Optional) Deploy to VM via SSH or using gcloud commands
-  # You can replace this with gcloud run deploy, gke deploy, or other targets
+  # ✅ Deploy to VM using gcloud and deploy.sh
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -43,3 +42,6 @@ timeout: 900s
 
 options:
   logging: CLOUD_LOGGING_ONLY
+
+# Grant permissions for Artifact Registry pull on VM
+serviceAccount: terraform-sa@graphite-store-463414-p2.iam.gserviceaccount.com
