@@ -11,6 +11,12 @@ OSLOGIN_USER=$(gcloud compute os-login describe-profile --format='value(posixAcc
 
 echo "🚀 Pulling and running Docker image on VM..."
 gcloud compute ssh ${OSLOGIN_USER}@${VM_NAME} --zone ${ZONE} --command "
+  # Ensure Docker is authenticated for root
+  gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+  sudo mkdir -p /root/.docker
+  sudo cp ~/.docker/config.json /root/.docker/config.json
+
+  # Pull and run the container
   sudo docker pull ${IMAGE_URI}
   sudo docker stop my-app || true
   sudo docker rm my-app || true
