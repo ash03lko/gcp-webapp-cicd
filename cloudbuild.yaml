@@ -20,6 +20,7 @@ steps:
 
   # Terraform init
   - name: 'hashicorp/terraform'
+    dir: 'gcp-webapp-cicd'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -28,6 +29,7 @@ steps:
 
   # Terraform apply
   - name: 'hashicorp/terraform'
+    dir: 'gcp-webapp-cicd'
     entrypoint: 'sh'
     args:
       - '-c'
