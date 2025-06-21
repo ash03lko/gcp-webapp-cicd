@@ -20,18 +20,8 @@ steps:
 
   # Terraform init
   - name: 'hashicorp/terraform'
-    dir: 'gcp-webapp-cicd'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        terraform init
+    args: ['init']
 
   # Terraform apply
   - name: 'hashicorp/terraform'
-    dir: 'gcp-webapp-cicd'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        terraform apply -auto-approve
+    args: ['apply', '-auto-approve']
