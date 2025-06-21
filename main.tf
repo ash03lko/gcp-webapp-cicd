@@ -3,13 +3,11 @@ provider "google" {
   region  = "us-central1"
 }
 
-# VPC
 resource "google_compute_network" "vpc_network" {
   name                   = "my-vpc"
   auto_create_subnetworks = false
 }
 
-# Public subnet
 resource "google_compute_subnetwork" "public_subnet" {
   name          = "public-subnet"
   ip_cidr_range = "11.0.1.0/24"
@@ -17,7 +15,6 @@ resource "google_compute_subnetwork" "public_subnet" {
   network       = google_compute_network.vpc_network.id
 }
 
-# Private subnet (not used in VM but present)
 resource "google_compute_subnetwork" "private_subnet" {
   name          = "private-subnet"
   ip_cidr_range = "10.0.2.0/24"
@@ -25,7 +22,6 @@ resource "google_compute_subnetwork" "private_subnet" {
   network       = google_compute_network.vpc_network.id
 }
 
-# Firewall rules
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc_network.name
@@ -47,14 +43,12 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   target_tags   = ["iap-ssh-enabled"]
 }
 
-# IAM binding for Artifact Registry access
 resource "google_project_iam_member" "artifact_registry_reader" {
   project = "graphite-store-463414-p2"
   role    = "roles/artifactregistry.reader"
   member  = "serviceAccount:740942188157-compute@developer.gserviceaccount.com"
 }
 
-# VM
 resource "google_compute_instance" "web_server" {
   name         = "web-server"
   machine_type = "e2-micro"
@@ -87,7 +81,6 @@ resource "google_compute_instance" "web_server" {
     apt-get update
     apt-get install -y ca-certificates curl gnupg lsb-release nginx
 
-    # Install Docker
     mkdir -m 0755 -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
@@ -125,7 +118,6 @@ output "web_server_external_ip" {
   value = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
 }
 
-# Monitoring + alerting
 resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
