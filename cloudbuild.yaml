@@ -1,37 +1,35 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
-  # Step 1: Build Docker image
+  # Build the Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'build',
-        '-t',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-        '.'
-      ]
+    args: [
+      'build',
+      '-t',
+      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+      '.'
+    ]
 
-  # Step 2: Push image to Artifact Registry
+  # Push the image
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'push',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-      ]
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+    ]
 
-  # Step 3: SSH into VM and run Docker container
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
+  # Terraform init
+  - name: 'hashicorp/terraform'
+    entrypoint: 'sh'
     args:
       - '-c'
       - |
-        gcloud compute ssh web-server --zone=us-central1-a --command="
-          sudo docker stop my-app || true;
-          sudo docker rm my-app || true;
-          sudo docker pull us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest;
-          sudo docker run -d --name my-app -p 80:80 us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest
-        "
+        terraform init
 
-images:
-  - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-
-options:
-  logging: CLOUD_LOGGING_ONLY
+  # Terraform apply
+  - name: 'hashicorp/terraform'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform apply -auto-approve
