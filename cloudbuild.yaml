@@ -20,3 +20,6 @@ steps:
     - 'web-server'
     - '--zone=us-central1-a'
     - '--command=sudo docker pull us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest && sudo docker stop my-app || true && sudo docker rm my-app || true && sudo docker run -d --name my-app -p 8080:80 us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
