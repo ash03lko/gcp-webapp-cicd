@@ -13,14 +13,14 @@ steps:
       - 'push'
       - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
 
-  # Step 3: Run unit tests
+  # Step 3: Run unit tests (installs requests and runs tests)
   - name: 'python:3.9'
-    entrypoint: 'python'
+    entrypoint: 'bash'
     args:
-      - '-m'
-      - 'unittest'
-      - 'test/test_deploy.py'
-    dir: '/workspace'
+      - '-c'
+      - |
+        pip install requests && \
+        python -m unittest discover -s test
 
   # Step 4: Deploy to Compute Engine VM
   - name: 'gcr.io/cloud-builders/gcloud'
