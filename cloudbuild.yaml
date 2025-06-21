@@ -1,25 +1,40 @@
 steps:
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['build', '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest', '.']
+  # Step 1: Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+      - '.'
 
-- name: 'docker'
-  entrypoint: 'docker'
-  args: ['run', '-d', '--rm', '-p', '80:80', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest']
+  # Step 2: Push Docker image to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
 
-- name: 'python:3.9'
-  entrypoint: 'python'
-  args: ['test/test_deploy.py']
+  # Step 3: Run unit tests
+  - name: 'python:3.9'
+    entrypoint: 'python'
+    args:
+      - '-m'
+      - 'unittest'
+      - 'test/test_deploy.py'
+    dir: '/workspace'
 
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest']
-
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-    - 'compute'
-    - 'ssh'
-    - 'web-server'
-    - '--zone=us-central1-a'
-    - '--command=sudo docker pull us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest && sudo docker stop my-app || true && sudo docker rm my-app || true && sudo docker run -d --name my-app -p 8080:80 us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+  # Step 4: Deploy to Compute Engine VM
+  - name: 'gcr.io/cloud-builders/gcloud'
+    args:
+      - 'compute'
+      - 'ssh'
+      - 'web-server'
+      - '--zone=us-central1-a'
+      - '--command'
+      - |
+        sudo docker pull us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest && \
+        sudo docker stop my-app || true && \
+        sudo docker rm my-app || true && \
+        sudo docker run -d --name my-app -p 8080:80 us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY
