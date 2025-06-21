@@ -1,47 +1,22 @@
 steps:
-  # ✅ Build the Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'build',
-        '-t',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-        '.'
-      ]
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['build', '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest', '.']
 
-  # ✅ Push the image to Artifact Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'push',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-      ]
+- name: 'docker'
+  entrypoint: 'docker'
+  args: ['run', '-d', '--rm', '-p', '80:80', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest']
 
-  # ✅ (Optional) Run tests
-  - name: 'python'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        pip install requests numpy --quiet
-        python test/test_deploy.py || exit 1
+- name: 'python:3.9'
+  entrypoint: 'python'
+  args: ['test/test_deploy.py']
 
-  # ✅ Deploy to VM using gcloud and deploy.sh
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        chmod +x deploy.sh
-        ./deploy.sh
+- name: 'gcr.io/cloud-builders/docker'
+  args: ['push', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest']
 
-images:
-  - 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-
-timeout: 900s
-
-options:
-  logging: CLOUD_LOGGING_ONLY
-
-# Grant permissions for Artifact Registry pull on VM
-serviceAccount: terraform-sa@graphite-store-463414-p2.iam.gserviceaccount.com
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    - 'compute'
+    - 'ssh'
+    - 'web-server'
+    - '--zone=us-central1-a'
+    - '--command=sudo docker pull us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest && sudo docker stop my-app || true && sudo docker rm my-app || true && sudo docker run -d --name my-app -p 8080:80 us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
