@@ -2,7 +2,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Build Docker image
+  # 🚀 Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
@@ -12,7 +12,7 @@ steps:
         '.'
       ]
 
-  # Push Docker image
+  # 🚀 Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
@@ -20,20 +20,29 @@ steps:
         'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
       ]
 
-  # Terraform init with GCS backend
+  # ⚙️ Terraform init (GCS backend configured in code)
   - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'terraform'
-    args: ['init']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform init
 
-  # Terraform apply
+  # ⚙️ Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'terraform'
-    args: ['apply', '-auto-approve']
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform apply -auto-approve
 
-  # Run deploy test
+  # ✅ Run deploy test
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
-      - 'run_test.sh'
+      - '-c'
+      - |
+        chmod +x run_test.sh
+        ./run_test.sh
 
 timeout: 1800s
