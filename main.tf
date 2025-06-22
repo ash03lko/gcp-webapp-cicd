@@ -4,13 +4,11 @@ provider "google" {
   zone    = var.zone
 }
 
-# VPC
 resource "google_compute_network" "vpc_network" {
   name                    = var.vpc_name
   auto_create_subnetworks = false
 }
 
-# Public Subnet
 resource "google_compute_subnetwork" "public_subnet" {
   name          = "public-subnet"
   ip_cidr_range = var.public_subnet_cidr
@@ -18,7 +16,6 @@ resource "google_compute_subnetwork" "public_subnet" {
   network       = google_compute_network.vpc_network.id
 }
 
-# Private Subnet
 resource "google_compute_subnetwork" "private_subnet" {
   name          = "private-subnet"
   ip_cidr_range = var.private_subnet_cidr
@@ -26,7 +23,6 @@ resource "google_compute_subnetwork" "private_subnet" {
   network       = google_compute_network.vpc_network.id
 }
 
-# Firewall - Allow HTTP/HTTPS
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc_network.name
@@ -39,7 +35,6 @@ resource "google_compute_firewall" "allow_http_https" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-# Firewall - Allow SSH via IAP
 resource "google_compute_firewall" "allow_ssh_from_iap" {
   name    = "allow-ssh-from-iap"
   network = google_compute_network.vpc_network.name
@@ -53,7 +48,6 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   target_tags   = ["iap-ssh-enabled"]
 }
 
-# Compute Engine Instance
 resource "google_compute_instance" "web_server" {
   name         = "web-server"
   machine_type = var.machine_type
@@ -76,7 +70,6 @@ resource "google_compute_instance" "web_server" {
   metadata_startup_script = <<-EOT
     #!/bin/bash
     set -e
-
     apt-get update
     apt-get install -y ca-certificates curl gnupg lsb-release
 
@@ -109,7 +102,6 @@ resource "google_compute_instance" "web_server" {
   }
 }
 
-# Monitoring Email Channel
 resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
@@ -119,7 +111,6 @@ resource "google_monitoring_notification_channel" "email_channel" {
   enabled = true
 }
 
-# Monitoring Alert Policy
 resource "google_monitoring_alert_policy" "cpu_alert" {
   display_name = "High CPU Usage Alert"
   combiner     = "OR"
@@ -143,7 +134,6 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   project               = var.project_id
 }
 
-# External IP output
 output "web_server_external_ip" {
   description = "External IP of the web server"
   value       = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
