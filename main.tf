@@ -50,8 +50,7 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   }
 
   source_ranges = ["35.235.240.0/20"]
-
-  target_tags = ["iap-ssh-enabled"]
+  target_tags   = ["iap-ssh-enabled"]
 }
 
 # Compute Engine instance
@@ -70,8 +69,7 @@ resource "google_compute_instance" "web_server" {
 
   network_interface {
     network    = google_compute_network.vpc_network.id
-    subnetwork = google_compute_subnetwork.public_subnet.name
-
+    subnetwork = google_compute_subnetwork.public_subnet.id
     access_config {}
   }
 
@@ -145,7 +143,7 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   conditions {
     display_name = "VM CPU > 80%"
     condition_threshold {
-      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.web_server.instance_id}\""
+      filter          = "resource.type=\"gce_instance\" AND resource.label.instance_id=\"${google_compute_instance.web_server.id}\" AND metric.type=\"compute.googleapis.com/instance/cpu/utilization\""
       comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "60s"
@@ -158,4 +156,9 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
 
   notification_channels = [google_monitoring_notification_channel.email_channel.id]
   project               = var.project_id
+}
+
+output "web_server_external_ip" {
+  description = "External IP of the web server"
+  value       = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
 }
