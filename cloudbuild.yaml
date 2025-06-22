@@ -51,13 +51,14 @@ steps:
         cat ip.txt
 
   # Run deploy test (local to build env)
-  - name: 'gcr.io/cloud-builders/curl'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        EXTERNAL_IP=$(cat ip.txt)
-        echo "Running HTTP check on http://$EXTERNAL_IP"
-        curl -f http://$EXTERNAL_IP
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      terraform output -raw web_server_external_ip > ip.txt
+      EXTERNAL_IP=$(cat ip.txt)
+      echo "External IP is $EXTERNAL_IP"
+      curl -f http://$EXTERNAL_IP || exit 1
 
 timeout: 1800s
