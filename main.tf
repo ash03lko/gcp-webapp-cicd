@@ -53,7 +53,7 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   target_tags   = ["iap-ssh-enabled"]
 }
 
-# Compute Engine instance
+# Compute Engine Instance
 resource "google_compute_instance" "web_server" {
   name         = "web-server"
   machine_type = var.machine_type
@@ -76,39 +76,24 @@ resource "google_compute_instance" "web_server" {
   metadata_startup_script = <<-EOT
     #!/bin/bash
     set -e
+
     apt-get update
-    apt-get install -y ca-certificates curl gnupg lsb-release nginx
+    apt-get install -y ca-certificates curl gnupg lsb-release
 
     mkdir -m 0755 -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+
     apt-get update
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
-    systemctl start docker
     systemctl enable docker
-    systemctl start nginx
-    systemctl enable nginx
+    systemctl start docker
 
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
+
     docker pull ${var.region}-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest
-    docker run -d --name my-app -p 8080:80 ${var.region}-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest
-
-    mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
-    cat > /etc/nginx/sites-available/myapp <<EOF
-server {
-    listen 80;
-    server_name _;
-
-    location / {
-        proxy_pass http://localhost:8080;
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-    }
-}
-EOF
-    ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
-    nginx -t && systemctl reload nginx
+    docker run -d --name my-app -p 80:80 ${var.region}-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest
   EOT
 
   service_account {
@@ -124,7 +109,7 @@ EOF
   }
 }
 
-# Monitoring Notification Channel
+# Monitoring Email Channel
 resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
@@ -158,6 +143,7 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   project               = var.project_id
 }
 
+# External IP output
 output "web_server_external_ip" {
   description = "External IP of the web server"
   value       = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
