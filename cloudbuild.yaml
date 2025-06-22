@@ -5,32 +5,25 @@ options:
       path: /workspace/.terraform
 
 steps:
-  # ✅ Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'build',
-        '-t',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-        '.'
-      ]
+    args: [
+      'build',
+      '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+      '.'
+    ]
 
-  # ✅ Run unit tests locally
   - name: 'python'
     entrypoint: 'python3'
     args: ['-m', 'unittest', 'discover', '-s', 'test']
     env:
       - 'APP_URL=http://localhost'
 
-  # ✅ Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      [
-        'push',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-      ]
+    args: [
+      'push',
+      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+    ]
 
-  # ✅ Initialize Terraform
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
@@ -38,7 +31,6 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Destroy existing infra
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['destroy', '-auto-approve']
@@ -46,7 +38,6 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Apply new infra
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
@@ -54,7 +45,6 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Capture external IP for test
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -63,7 +53,6 @@ steps:
         terraform output -raw web_server_external_ip > ip.txt
         cat ip.txt
 
-  # ✅ Run tests against deployed app
   - name: 'python'
     entrypoint: 'bash'
     args:
