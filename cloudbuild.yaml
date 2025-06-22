@@ -38,7 +38,5 @@ steps:
       - |
         echo "Fetching external IP..."
         IP=$(terraform output -raw web_server_external_ip)
-        echo "IP: $IP"
-        ./deploy_test.sh "$IP"
 
 timeout: 1800s
