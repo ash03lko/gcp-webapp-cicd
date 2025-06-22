@@ -28,33 +28,14 @@ steps:
       - |
         terraform init
 
-  # ⚙️ Terraform import existing resources
+  # ⚙️ Terraform import using script
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        PROJECT_ID=graphite-store-463414-p2
-        REGION=us-central1
-        ZONE=us-central1-a
-
-        terraform state list | grep google_compute_network.vpc_network || \
-          terraform import google_compute_network.vpc_network my-vpc
-
-        terraform state list | grep google_compute_subnetwork.public_subnet || \
-          terraform import google_compute_subnetwork.public_subnet ${REGION}/public-subnet
-
-        terraform state list | grep google_compute_subnetwork.private_subnet || \
-          terraform import google_compute_subnetwork.private_subnet ${REGION}/private-subnet
-
-        terraform state list | grep google_compute_firewall.allow_http_https || \
-          terraform import google_compute_firewall.allow_http_https projects/${PROJECT_ID}/global/firewalls/allow-http-https
-
-        terraform state list | grep google_compute_firewall.allow_ssh_from_iap || \
-          terraform import google_compute_firewall.allow_ssh_from_iap projects/${PROJECT_ID}/global/firewalls/allow-ssh-from-iap
-
-        terraform state list | grep google_compute_instance.web_server || \
-          terraform import google_compute_instance.web_server projects/${PROJECT_ID}/zones/${ZONE}/instances/web-server
+        chmod +x import.sh
+        ./import.sh
 
   # ⚙️ Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
