@@ -72,8 +72,4 @@ steps:
         echo "Running tests on deployed app at http://$EXTERNAL_IP"
         APP_URL=http://$EXTERNAL_IP python3 -m unittest discover -s test
 
-artifacts:
-  files:
-    - ip.txt
-
 timeout: 1800s
