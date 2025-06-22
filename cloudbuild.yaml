@@ -1,3 +1,8 @@
+options:
+  volumes:
+    - name: tf-cache
+      path: /workspace/.terraform
+
 steps:
   # ✅ Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
@@ -25,23 +30,32 @@ steps:
       ]
 
   # ✅ Initialize Terraform
-  - name: 'hashicorp/terraform'
+  - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
+    volumes:
+      - name: tf-cache
+        path: /workspace/.terraform
 
   # ✅ Destroy existing infrastructure (clean before deploy)
-  - name: 'hashicorp/terraform'
+  - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['destroy', '-auto-approve']
+    volumes:
+      - name: tf-cache
+        path: /workspace/.terraform
 
   # ✅ Apply new infrastructure
-  - name: 'hashicorp/terraform'
+  - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
+    volumes:
+      - name: tf-cache
+        path: /workspace/.terraform
 
   # ✅ Capture the external IP and save it for tests
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
+  - name: 'hashicorp/terraform:1.6.6'
+    entrypoint: 'sh'
     args:
       - '-c'
       - |
@@ -50,12 +64,16 @@ steps:
 
   # ✅ Run tests against the deployed app
   - name: 'python'
-    entrypoint: 'bash'
+    entrypoint: 'sh'
     args:
       - '-c'
       - |
         EXTERNAL_IP=$(cat ip.txt)
         echo "Running tests on deployed app at http://$EXTERNAL_IP"
         APP_URL=http://$EXTERNAL_IP python3 -m unittest discover -s test
+
+artifacts:
+  files:
+    - ip.txt
 
 timeout: 1800s
