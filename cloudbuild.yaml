@@ -2,7 +2,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Build Docker image
+  # Step 1: Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
@@ -10,7 +10,7 @@ steps:
       '.'
     ]
 
-  # Run unit tests inside Docker image
+  # Step 2: Run unit tests inside built Docker container
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'run',
@@ -19,46 +19,31 @@ steps:
       'python3', '-m', 'unittest', 'discover', '-s', 'test'
     ]
 
-  # Push Docker image
+  # Step 3: Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'push',
       'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
     ]
 
-  # Terraform init
+  # Step 4: Terraform init
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
 
-  # Terraform destroy
-  - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'terraform'
-    args: ['destroy', '-auto-approve']
-
-  # Terraform apply
+  # Step 5: Terraform apply to deploy infrastructure
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
 
-  # Capture external IP
+  # Step 6: Run deploy test on live external IP
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        terraform output -raw web_server_external_ip > ip.txt
-        cat ip.txt
-
-  # Run deploy test
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        terraform output -raw web_server_external_ip > ip.txt
-        EXTERNAL_IP=$(cat ip.txt)
-        echo "External IP is $EXTERNAL_IP"
-        curl -f http://$EXTERNAL_IP || exit 1
+        IP=$(terraform output -raw web_server_external_ip)
+        echo "Testing deployed app at http://$IP"
+        curl -f http://$IP || (echo 'App test failed!' && exit 1)
 
 timeout: 1800s
