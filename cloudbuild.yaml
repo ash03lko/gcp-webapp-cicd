@@ -2,41 +2,32 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # 🚀 Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
-      [
-        'build',
-        '-t',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-        '.'
-      ]
+      ['build', '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest', '.']
 
-  # 🚀 Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args:
-      [
-        'push',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-      ]
+      ['push', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest']
 
-  # ⚙️ Terraform init (GCS backend configured in code)
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
-      - |
-        terraform init
+      - terraform init -no-color
 
-  # ⚙️ Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
-      - |
-        terraform apply -auto-approve
+      - terraform plan -no-color
 
-  # ✅ Run deploy test
+  - name: 'hashicorp/terraform:1.6.6'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - terraform apply -auto-approve -input=false -no-color
+
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
