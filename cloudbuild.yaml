@@ -30,13 +30,10 @@ steps:
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
 
-  # Deploy test: get external IP + run test
+  # Run deploy test
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
-      - '-c'
-      - |
-        echo "Fetching external IP..."
-        IP=$(terraform output -raw web_server_external_ip)
+      - 'run_test.sh'
 
 timeout: 1800s
