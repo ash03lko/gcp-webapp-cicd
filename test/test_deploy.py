@@ -1,18 +1,16 @@
-#!/bin/bash
-set -e
+import unittest
+import requests
+import os
 
-IP="$1"
-if [[ -z "$IP" ]]; then
-  echo "Usage: $0 <web_server_external_ip>"
-  exit 1
-fi
+class TestDeploy(unittest.TestCase):
+    def test_homepage(self):
+        # APP_URL should be set as environment variable in Cloud Build test step
+        app_url = os.getenv('APP_URL')
+        if not app_url:
+            self.fail("APP_URL environment variable not set")
 
-echo "Testing app at http://$IP"
-HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}\n" http://$IP)
+        response = requests.get(app_url)
+        self.assertEqual(response.status_code, 200, f"Expected 200 OK but got {response.status_code}")
 
-if [[ "$HTTP_STATUS" == "200" ]]; then
-  echo "✅ App is healthy, returned 200 OK"
-else
-  echo "❌ App health check failed, got HTTP $HTTP_STATUS"
-  exit 1
-fi
+if __name__ == '__main__':
+    unittest.main()
