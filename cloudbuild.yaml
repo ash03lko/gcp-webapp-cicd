@@ -2,7 +2,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Step 1: Build Docker image
+  # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'build',
@@ -10,41 +10,30 @@ steps:
       '.'
     ]
 
-  # Step 2: Run unit tests inside Docker image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'run',
-      '--rm',
-      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-      'python3', '-m', 'unittest', 'discover', '-s', 'test'
-    ]
-
-  # Step 3: Push Docker image to Artifact Registry
+  # Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'push',
       'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
     ]
 
-  # Step 4: Terraform init
+  # Terraform init
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
 
-  # Step 5: Terraform apply (provision infra + deploy app)
+  # Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
 
-  # Step 6: Run deploy test (test live app on VM)
-  - name: 'python:3.9-slim'
+  # Run deploy test
+  - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        apt-get update && apt-get install -y curl
         IP=$(terraform output -raw web_server_external_ip)
-        echo "Deployed app external IP: $IP"
-        APP_URL=http://$IP python3 -m unittest discover -s test
+        ./deploy_test.sh $IP
 
 timeout: 1800s
