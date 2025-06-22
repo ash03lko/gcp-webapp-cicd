@@ -22,6 +22,7 @@ steps:
 
   # ⚙️ Terraform init
   - name: 'hashicorp/terraform:1.6.6'
+    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -30,6 +31,7 @@ steps:
 
   # ⚙️ Terraform import using script
   - name: 'hashicorp/terraform:1.6.6'
+    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -41,6 +43,7 @@ steps:
 
   # ⚙️ Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
+    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -49,6 +52,7 @@ steps:
 
   # ✅ Run deploy test
   - name: 'gcr.io/cloud-builders/gcloud'
+    dir: '/workspace'
     entrypoint: 'bash'
     args:
       - '-c'
