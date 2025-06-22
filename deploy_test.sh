@@ -1,20 +1,19 @@
 #!/bin/bash
+set -e
 
-# Check if IP argument is provided
-if [ -z "$1" ]; then
+IP=$1
+
+if [ -z "$IP" ]; then
   echo "Usage: $0 <IP>"
   exit 1
 fi
 
-IP="$1"
-URL="http://$IP"
+echo "Running tests against http://$IP"
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://$IP)
 
-echo "Running deployment test on $URL ..."
-
-# Attempt to fetch the homepage
-if curl -f --max-time 10 "$URL"; then
-  echo "✅ Deployment test passed: App is reachable at $URL"
+if [ "$STATUS" -eq 200 ]; then
+  echo "✅ App is healthy!"
 else
-  echo "❌ Deployment test failed: App is not reachable at $URL"
+  echo "❌ App test failed. Status code: $STATUS"
   exit 1
 fi
