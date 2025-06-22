@@ -34,6 +34,8 @@ steps:
     args:
       - '-c'
       - |
+        echo "📂 Current directory contents:"
+        ls -la
         chmod +x import.sh
         ./import.sh
 
