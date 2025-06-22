@@ -3,13 +3,7 @@ set -e
 
 echo "Fetching external IP..."
 IP=$(terraform output -raw web_server_external_ip)
+echo "External IP: $IP"
 
-if [ -z "$IP" ]; then
-  echo "Failed to get external IP"
-  exit 1
-fi
-
-echo "External IP is: $IP"
-
-# Run your test script
-./deploy_test.sh "$IP"
+APP_URL="http://$IP"
+APP_URL=$APP_URL python3 -m unittest test/test_deploy.py
