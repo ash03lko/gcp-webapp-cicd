@@ -10,16 +10,16 @@ steps:
       '.'
     ]
 
-  # Step 2: Run tests independently (fail early if tests fail)
-  - name: 'python:3.9-slim'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        pip install -r requirements.txt
-        python3 -m unittest discover -s test
+  # Step 2: Run unit tests inside Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'run',
+      '--rm',
+      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+      'python3', '-m', 'unittest', 'discover', '-s', 'test'
+    ]
 
-  # Step 3: Push Docker image (only if tests pass)
+  # Step 3: Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args: [
       'push',
@@ -31,9 +31,20 @@ steps:
     entrypoint: 'terraform'
     args: ['init']
 
-  # Step 5: Terraform apply (provision infrastructure)
+  # Step 5: Terraform apply (provision infra + deploy app)
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
+
+  # Step 6: Run deploy test (test live app on VM)
+  - name: 'python:3.9-slim'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        apt-get update && apt-get install -y curl
+        IP=$(terraform output -raw web_server_external_ip)
+        echo "Deployed app external IP: $IP"
+        APP_URL=http://$IP python3 -m unittest discover -s test
 
 timeout: 1800s
