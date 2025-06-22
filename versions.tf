@@ -7,4 +7,9 @@ terraform {
       version = ">= 4.50.0"
     }
   }
+
+  backend "gcs" {
+    bucket = "graphite-store-tf-state"  # <-- Use your dedicated bucket name
+    prefix = "terraform/state"
+  }
 }
