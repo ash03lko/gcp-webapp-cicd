@@ -4,28 +4,29 @@ provider "google" {
   zone    = var.zone
 }
 
-# 🕸 VPC
+# VPC
 resource "google_compute_network" "vpc_network" {
-  name = "my-vpc"
+  name                    = var.vpc_name
+  auto_create_subnetworks = false
 }
 
-# 🌐 Public subnet
+# Public Subnet
 resource "google_compute_subnetwork" "public_subnet" {
   name          = "public-subnet"
-  ip_cidr_range = "11.0.1.0/24"
-  network       = google_compute_network.vpc_network.id
+  ip_cidr_range = var.public_subnet_cidr
   region        = var.region
+  network       = google_compute_network.vpc_network.id
 }
 
-# 🔒 Private subnet
+# Private Subnet
 resource "google_compute_subnetwork" "private_subnet" {
   name          = "private-subnet"
-  ip_cidr_range = "10.0.2.0/24"
-  network       = google_compute_network.vpc_network.id
+  ip_cidr_range = var.private_subnet_cidr
   region        = var.region
+  network       = google_compute_network.vpc_network.id
 }
 
-# 🚪 Allow HTTP/HTTPS
+# Firewall - Allow HTTP/HTTPS
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc_network.name
@@ -38,7 +39,7 @@ resource "google_compute_firewall" "allow_http_https" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-# 🚪 Allow SSH from IAP
+# Firewall - Allow SSH via IAP
 resource "google_compute_firewall" "allow_ssh_from_iap" {
   name    = "allow-ssh-from-iap"
   network = google_compute_network.vpc_network.name
@@ -49,15 +50,17 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   }
 
   source_ranges = ["35.235.240.0/20"]
-  target_tags   = ["iap-ssh-enabled"]
+
+  target_tags = ["iap-ssh-enabled"]
 }
 
-# 🖥️ Compute Engine
+# Compute Engine instance
 resource "google_compute_instance" "web_server" {
   name         = "web-server"
-  machine_type = "e2-micro"
+  machine_type = var.machine_type
   zone         = var.zone
-  tags         = ["http-server", "iap-ssh-enabled"]
+
+  tags = ["http-server", "iap-ssh-enabled"]
 
   boot_disk {
     initialize_params {
@@ -66,15 +69,10 @@ resource "google_compute_instance" "web_server" {
   }
 
   network_interface {
+    network    = google_compute_network.vpc_network.id
     subnetwork = google_compute_subnetwork.public_subnet.name
 
-    access_config {
-      # ephemeral public IP
-    }
-  }
-
-  metadata = {
-    enable-oslogin = "TRUE"
+    access_config {}
   }
 
   metadata_startup_script = <<-EOT
@@ -83,10 +81,9 @@ resource "google_compute_instance" "web_server" {
     apt-get update
     apt-get install -y ca-certificates curl gnupg lsb-release nginx
 
-    # Docker install
     mkdir -m 0755 -p /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
+    echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \$(lsb_release -cs) stable" > /etc/apt/sources.list.d/docker.list
     apt-get update
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
@@ -96,46 +93,59 @@ resource "google_compute_instance" "web_server" {
     systemctl enable nginx
 
     gcloud auth configure-docker ${var.region}-docker.pkg.dev --quiet
-    docker pull ${var.image_url}
-    docker run -d --name my-app -p 8080:80 ${var.image_url}
+    docker pull ${var.region}-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest
+    docker run -d --name my-app -p 8080:80 ${var.region}-docker.pkg.dev/${var.project_id}/my-repo/my-app:latest
 
-    cat > /etc/nginx/sites-available/myapp <<NGINX
-    server {
-      listen 80;
-      server_name _;
-      location / {
+    mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+    cat > /etc/nginx/sites-available/myapp <<EOF
+server {
+    listen 80;
+    server_name _;
+
+    location / {
         proxy_pass http://localhost:8080;
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
-      }
     }
-    NGINX
+}
+EOF
     ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled/
     nginx -t && systemctl reload nginx
   EOT
+
+  service_account {
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  metadata = {
+    enable-oslogin = "TRUE"
+  }
+
+  labels = {
+    goog-terraform-provisioned = "true"
+  }
 }
 
-# 📈 Monitoring notification
-resource "google_monitoring_notification_channel" "email" {
+# Monitoring Notification Channel
+resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
   labels = {
-    email_address = var.alert_email
+    email_address = var.email_alert
   }
   enabled = true
 }
 
-# 📈 Monitoring alert
+# Monitoring Alert Policy
 resource "google_monitoring_alert_policy" "cpu_alert" {
   display_name = "High CPU Usage Alert"
   combiner     = "OR"
   enabled      = true
-  project      = var.project_id
 
   conditions {
     display_name = "VM CPU > 80%"
     condition_threshold {
-      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" resource.type=\"gce_instance\""
+      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.web_server.instance_id}\""
       comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "60s"
@@ -146,10 +156,6 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
     }
   }
 
-  notification_channels = [google_monitoring_notification_channel.email.id]
-}
-
-# 🌐 OUTPUT
-output "web_server_external_ip" {
-  value = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
+  notification_channels = [google_monitoring_notification_channel.email_channel.id]
+  project               = var.project_id
 }
