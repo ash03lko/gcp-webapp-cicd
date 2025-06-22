@@ -36,8 +36,8 @@ steps:
     args:
       - '-c'
       - |
-        echo "📂 Current directory contents:"
-        ls -la
+        echo "📂 Files in /workspace:"
+        ls -la /workspace
         chmod +x import.sh
         ./import.sh
 
