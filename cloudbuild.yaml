@@ -4,20 +4,23 @@ options:
 steps:
   # Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build',
-      '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
-      '.'
-    ]
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+        '.'
+      ]
 
-  # Push Docker image to Artifact Registry
+  # Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'push',
-      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
-    ]
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
+      ]
 
-  # Terraform init
+  # Terraform init with GCS backend
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
@@ -27,13 +30,15 @@ steps:
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
 
-  # Run deploy test
+  # Deploy test: get external IP + run test
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
+        echo "Fetching external IP..."
         IP=$(terraform output -raw web_server_external_ip)
-        ./deploy_test.sh $IP
+        echo "IP: $IP"
+        ./deploy_test.sh "$IP"
 
 timeout: 1800s
