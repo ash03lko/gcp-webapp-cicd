@@ -15,7 +15,7 @@ steps:
         '.'
       ]
 
-  # ✅ Run local unit tests (before deployment)
+  # ✅ Run unit tests locally
   - name: 'python'
     entrypoint: 'python3'
     args: ['-m', 'unittest', 'discover', '-s', 'test']
@@ -38,7 +38,7 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Destroy existing infrastructure
+  # ✅ Destroy existing infra
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['destroy', '-auto-approve']
@@ -46,7 +46,7 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Apply new infrastructure
+  # ✅ Apply new infra
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
@@ -54,18 +54,18 @@ steps:
       - name: tf-cache
         path: /workspace/.terraform
 
-  # ✅ Capture external IP
-  - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'sh'
+  # ✅ Capture external IP for test
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
         terraform output -raw web_server_external_ip > ip.txt
         cat ip.txt
 
-  # ✅ Run tests on deployed app
+  # ✅ Run tests against deployed app
   - name: 'python'
-    entrypoint: 'sh'
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
