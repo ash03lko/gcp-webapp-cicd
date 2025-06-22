@@ -27,23 +27,14 @@ steps:
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['init']
-    volumes:
-      - name: tf-cache
-        path: /workspace/.terraform
 
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['destroy', '-auto-approve']
-    volumes:
-      - name: tf-cache
-        path: /workspace/.terraform
 
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
-    volumes:
-      - name: tf-cache
-        path: /workspace/.terraform
 
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
