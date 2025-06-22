@@ -1,27 +1,57 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
-
 steps:
-  # Build Docker image
+  # ✅ Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'build',
-      '-t',
-      'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
+      'build', 
+      '-t', 'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest', 
       '.'
     ]
 
-  # Push Docker image
+  # ✅ Run unit tests locally before pushing
+  - name: 'python'
+    entrypoint: 'python3'
+    args: ['-m', 'unittest', 'discover', '-s', 'test']
+    env:
+      - 'APP_URL=http://localhost'
+
+  # ✅ Push Docker image
   - name: 'gcr.io/cloud-builders/docker'
     args: [
-      'push',
+      'push', 
       'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
     ]
 
-  # Terraform init
+  # ✅ Terraform init
   - name: 'hashicorp/terraform'
+    entrypoint: 'terraform'
     args: ['init']
 
-  # Terraform apply
+  # ✅ Clean previous resources (destroy)
   - name: 'hashicorp/terraform'
+    entrypoint: 'terraform'
+    args: ['destroy', '-auto-approve']
+
+  # ✅ Apply fresh infra
+  - name: 'hashicorp/terraform'
+    entrypoint: 'terraform'
     args: ['apply', '-auto-approve']
+
+  # ✅ Capture external IP of new instance
+  - name: 'hashicorp/terraform'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform output -raw web_server_external_ip > ip.txt
+
+  # ✅ Run tests on deployed app
+  - name: 'python'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        EXTERNAL_IP=$(cat ip.txt)
+        echo "Testing deployed app at http://$EXTERNAL_IP"
+        APP_URL=http://$EXTERNAL_IP python3 -m unittest discover -s test
+
+timeout: 1800s
