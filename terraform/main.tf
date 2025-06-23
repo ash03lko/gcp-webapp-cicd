@@ -1,3 +1,19 @@
+variable "project_id" {
+  default = "graphite-store-463414-p2"
+}
+
+variable "region" {
+  default = "us-central1"
+}
+
+variable "zone" {
+  default = "us-central1-a"
+}
+
+variable "email_alert" {
+  default = "ashweryaverma@gmail.com"
+}
+
 resource "google_compute_network" "vpc_network" {
   name = "webapp-vpc"
 }
@@ -10,10 +26,10 @@ resource "google_compute_subnetwork" "public_subnet" {
 }
 
 resource "google_compute_subnetwork" "private_subnet" {
-  name          = "private-subnet"
-  ip_cidr_range = "10.0.2.0/24"
-  region        = var.region
-  network       = google_compute_network.vpc_network.id
+  name                    = "private-subnet"
+  ip_cidr_range           = "10.0.2.0/24"
+  region                  = var.region
+  network                 = google_compute_network.vpc_network.id
   private_ip_google_access = true
 }
 
@@ -41,6 +57,35 @@ resource "google_compute_firewall" "allow_ssh" {
 
   source_ranges = ["0.0.0.0/0"]
   target_tags   = ["web-server"]
+}
+
+resource "google_compute_instance" "web_instance" {
+  name         = "web-server"
+  machine_type = "e2-micro"
+  zone         = var.zone
+
+  tags = ["web-server", "http-server", "https-server"]
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork = google_compute_subnetwork.public_subnet.id
+    access_config {}
+  }
+
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    sudo apt update
+    sudo apt install -y nginx google-fluentd
+    sudo systemctl enable nginx
+    sudo systemctl start nginx
+    sudo systemctl enable google-fluentd
+    sudo systemctl start google-fluentd
+  EOT
 }
 
 resource "google_monitoring_notification_channel" "email" {
@@ -71,33 +116,4 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
 
   notification_channels = [google_monitoring_notification_channel.email.id]
   enabled = true
-}
-
-resource "google_compute_instance" "web_instance" {
-  name         = "web-server"
-  machine_type = "e2-micro"
-  zone         = var.zone
-
-  tags = ["web-server"]
-
-  boot_disk {
-    initialize_params {
-      image = "debian-cloud/debian-11"
-    }
-  }
-
-  network_interface {
-    subnetwork = google_compute_subnetwork.public_subnet.id
-    access_config {}
-  }
-
-  metadata_startup_script = <<-EOT
-    #!/bin/bash
-    sudo apt update
-    sudo apt install -y nginx google-fluentd
-    sudo systemctl enable nginx
-    sudo systemctl start nginx
-    sudo systemctl enable google-fluentd
-    sudo systemctl start google-fluentd
-  EOT
 }
