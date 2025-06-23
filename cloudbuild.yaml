@@ -32,16 +32,21 @@ steps:
           }
       done
 
-# 3️⃣ Restart Nginx to serve the new app
+# 3️⃣ Restart Nginx + Enable Google Cloud Logging
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
+      echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
       gcloud compute ssh \
         --zone=us-central1-a \
         --ssh-key-file=/workspace/cloudbuild_vm_key \
         cloudbuild@web-server \
-        --command="sudo systemctl restart nginx"
+        --command="sudo systemctl restart nginx && \
+                   sudo apt-get update && \
+                   sudo apt-get install -y google-fluentd && \
+                   sudo systemctl enable google-fluentd && \
+                   sudo systemctl restart google-fluentd"
 
 timeout: 900s
