@@ -10,15 +10,17 @@ steps:
       chmod +x test.sh
       ./test.sh
 
-# 2️⃣ Download SSH key + Sleep + SCP app files
+# 2️⃣ Download SSH keys + Sleep + SCP files
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
-      echo "⬇️ Downloading SSH key from Cloud Storage..."
+      echo "⬇️ Downloading SSH keys from Cloud Storage..."
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key /workspace/cloudbuild_vm_key
+      gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
       chmod 400 /workspace/cloudbuild_vm_key
+      chmod 400 /workspace/cloudbuild_vm_key.pub
 
       echo "⏳ Sleeping 60 seconds for VM readiness..."
       sleep 60
@@ -36,7 +38,7 @@ steps:
           }
       done
 
-# 3️⃣ Restart Nginx + Enable Cloud Logging
+# 3️⃣ Restart Nginx + Enable Cloud Logging agent
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
