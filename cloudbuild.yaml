@@ -1,45 +1,64 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
-
 steps:
-  - name: 'gcr.io/cloud-builders/gcloud'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        echo "🧹 Cleaning up..."
-        gcloud compute instances delete public-web-server --zone=us-central1-a --quiet || true
-        gcloud compute networks subnets delete public-subnet --region=us-central1 --quiet || true
-        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
-        gcloud compute firewall-rules delete allow-http-https --quiet || true
-        gcloud compute firewall-rules delete allow-ssh-from-iap --quiet || true
-        gcloud compute networks delete my-vpc --quiet || true
 
-  - name: 'hashicorp/terraform:1.6.6'
-    args: ['init']
+# 1️⃣ Run automated tests — must pass to continue
+- name: 'gcr.io/cloud-builders/docker'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "🚀 Running automated tests..."
+      chmod +x test.sh
+      ./test.sh
+  # If this fails, the build will stop and no further steps will run.
 
-  - name: 'hashicorp/terraform:1.6.6'
-    args: ['validate']
+# 2️⃣ Cleanup: Check for existing VM and delete if found
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+    - '-c'
+    - |
+      echo "🔍 Checking for existing VM..."
+      VM_EXISTS=$(gcloud compute instances list --filter="name=web-server" --format="value(name)")
+      if [ "$VM_EXISTS" != "" ]; then
+        echo "⚠️ Existing VM found: $VM_EXISTS — deleting..."
+        gcloud compute instances delete web-server --zone=us-central1-a --quiet
+      else
+        echo "✅ No existing VM to delete."
+      fi
 
-  - name: 'hashicorp/terraform:1.6.6'
-    args: ['apply', '-auto-approve']
+# 3️⃣ Create a fresh VM with Nginx + Cloud Logging agent
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'instances', 'create', 'web-server',
+      '--zone=us-central1-a',
+      '--machine-type=e2-micro',
+      '--subnet=public-subnet',
+      '--tags=http-server,https-server',
+      '--image-family=debian-11',
+      '--image-project=debian-cloud',
+      '--metadata=startup-script=sudo apt update && sudo apt install -y nginx google-fluentd && sudo systemctl enable nginx && sudo systemctl start nginx && sudo systemctl enable google-fluentd && sudo systemctl start google-fluentd'
+    ]
 
-  - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        terraform output -raw web_server_external_ip > /workspace/ip.txt
-        echo "Captured IP: $(cat /workspace/ip.txt)"
+# 4️⃣ Copy app files to the VM
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'scp',
+      '--zone=us-central1-a',
+      '--recurse',
+      './app/*',
+      'web-server:/var/www/html'
+    ]
 
-  - name: 'curlimages/curl:7.87.0'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        IP=$(cat /workspace/ip.txt)
-        echo "Running test on http://$IP"
-        chmod +x ./run_test.sh
-        ./run_test.sh $IP
+# 5️⃣ Restart Nginx to serve the new app
+- name: 'gcr.io/cloud-builders/gcloud'
+  args:
+    [
+      'compute', 'ssh',
+      '--zone=us-central1-a',
+      'web-server',
+      '--command=sudo systemctl restart nginx'
+    ]
 
-timeout: 1200s
+timeout: 900s
