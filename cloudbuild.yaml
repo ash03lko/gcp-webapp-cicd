@@ -1,8 +1,6 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
-
 steps:
-# 1️⃣ Automated tests
+
+# 1️⃣ Run automated tests
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args:
@@ -11,13 +9,8 @@ steps:
       echo "🚀 Running automated tests..."
       chmod +x test.sh
       ./test.sh
-      if [ $? -ne 0 ]; then
-        echo "❌ Tests failed!"
-        exit 1
-      fi
-      echo "✅ All tests passed."
 
-# 2️⃣ Wait for VM and copy app files
+# 2️⃣ Sleep + SCP app files using static SSH key
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -25,26 +18,28 @@ steps:
     - |
       echo "⏳ Sleeping 60 seconds for VM readiness..."
       sleep 60
-      for i in {1..5}; do
-        echo "⏳ Attempt $$i: copying files..."
-        if gcloud compute scp --zone=us-central1-a --recurse ./app/* web-server:/var/www/html; then
-          echo "✅ Files copied successfully!"
-          exit 0
-        else
-          echo "⚠️ Attempt $$i failed. Retrying in 10s..."
-          sleep 10
-        fi
-      done
-      echo "❌ SCP failed after retries"
-      exit 1
 
-# 3️⃣ Restart Nginx
+      echo "⏳ Attempting SCP with static SSH key..."
+      for i in {1..5}; do
+        gcloud compute scp \
+          --zone=us-central1-a \
+          --ssh-key-file=cloudbuild_vm_key \
+          --recurse \
+          ./app/* \
+          cloudbuild@web-server:/var/www/html && break || {
+            echo "⚠️ Attempt $i failed. Retrying in 10s..."
+            sleep 10
+          }
+      done
+
+# 3️⃣ Restart Nginx to serve the new app
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
     [
       'compute', 'ssh',
       '--zone=us-central1-a',
-      'web-server',
+      '--ssh-key-file=cloudbuild_vm_key',
+      'cloudbuild@web-server',
       '--command=sudo systemctl restart nginx'
     ]
 
