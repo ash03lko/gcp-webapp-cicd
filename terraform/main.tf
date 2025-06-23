@@ -86,6 +86,10 @@ resource "google_compute_instance" "web_instance" {
     sudo systemctl enable google-fluentd
     sudo systemctl start google-fluentd
   EOT
+
+  metadata = {
+    ssh-keys = "cloudbuild:ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDWBQFTgAmsPatv3nBUHH8UiZacCA9t5qwg+aLZ4CBm+lt6FJ0OMquNS5i2ebIUH4JXC0Qpwxq41lEkQj04KRqzUDfa0vgel0tBKCmSsLqobKh6FvkmgPdjRox/F77sTs0Y6bfMGacBES8MhiwQnqXEdSaGxMgZKpnrf7QIhQTe2cQQtdmSH4Rwr6wAXcvP0Al9lxg+FwThCdocxH5vrPXr/r5Lj1i4eV7y8AZwz/RWfCA+Ems8m8C2nuHByIr8Fbucv7aDrvoyUrhiFn9hGpMP4XZh/88B1ieHeRebHNWeCuGd8JSDtLMp98+1/Zv6nZyyBaCVYxBerTybUX0fRLpF/ZiVtuA8kQFQGiKS74KoUlypAXw9f82JfR4TtO599kMdLysW0+jPelQJQcQB8C0dCFyeMu+O0k5n6nKxDThwF7i6RRKvMI5KfCNKAaUmBSeb+KNXFEun1mV54vp6rt1ZG0BKRvtEt0ybGUTybqKvHa9GhbO8aNj3MHndQCPlsMU= cloudbuild-key"
+  }
 }
 
 resource "google_monitoring_notification_channel" "email" {
