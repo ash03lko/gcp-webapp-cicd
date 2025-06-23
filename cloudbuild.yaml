@@ -25,6 +25,7 @@ steps:
           --zone=us-central1-a \
           --ssh-key-file=/workspace/cloudbuild_vm_key \
           --recurse \
+          --quiet \
           ./app/* \
           cloudbuild@web-server:/var/www/html && break || {
             echo "⚠️ Attempt $i failed. Retrying in 10s..."
@@ -32,7 +33,7 @@ steps:
           }
       done
 
-# 3️⃣ Restart Nginx + Enable Google Cloud Logging
+# 3️⃣ Restart Nginx + Enable Cloud Logging
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -42,6 +43,7 @@ steps:
       gcloud compute ssh \
         --zone=us-central1-a \
         --ssh-key-file=/workspace/cloudbuild_vm_key \
+        --quiet \
         cloudbuild@web-server \
         --command="sudo systemctl restart nginx && \
                    sudo apt-get update && \
