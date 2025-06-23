@@ -1,52 +1,119 @@
-options:
-  logging: CLOUD_LOGGING_ONLY
+variable "project_id" {
+  default = "graphite-store-463414-p2"
+}
 
-steps:
-# 1️⃣ Run automated tests
-- name: 'gcr.io/cloud-builders/docker'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      echo "🚀 Running automated tests..."
-      chmod +x test.sh
-      ./test.sh
-      TEST_EXIT_CODE=$$?
-      if [ $$TEST_EXIT_CODE -ne 0 ]; then
-        echo "❌ Tests failed. Exiting build."
-        exit $$TEST_EXIT_CODE
-      fi
-      echo "✅ All tests passed."
+variable "region" {
+  default = "us-central1"
+}
 
-# 2️⃣ Wait and deploy app files
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      echo "⏳ Sleeping 60 seconds to let VM initialize..."
-      sleep 60
-      echo "⏳ Attempting SCP to VM..."
-      for i in {1..5}; do
-        if gcloud compute scp --zone=us-central1-a --recurse ./app/* web-server:/var/www/html; then
-          echo "✅ File copy succeeded"
-          exit 0
-        else
-          echo "⚠️ Attempt $$i failed. Retrying in 10s..."
-          sleep 10
-        fi
-      done
-      echo "❌ File copy failed after retries"
-      exit 1
+variable "zone" {
+  default = "us-central1-a"
+}
 
-# 3️⃣ Restart Nginx
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-    [
-      'compute', 'ssh',
-      '--zone=us-central1-a',
-      'web-server',
-      '--command=sudo systemctl restart nginx'
-    ]
+variable "email_alert" {
+  default = "ashweryaverma@gmail.com"
+}
 
-timeout: 900s
+resource "google_compute_network" "vpc_network" {
+  name = "webapp-vpc"
+}
+
+resource "google_compute_subnetwork" "public_subnet" {
+  name          = "public-subnet"
+  ip_cidr_range = "10.0.1.0/24"
+  region        = var.region
+  network       = google_compute_network.vpc_network.id
+}
+
+resource "google_compute_subnetwork" "private_subnet" {
+  name                    = "private-subnet"
+  ip_cidr_range           = "10.0.2.0/24"
+  region                  = var.region
+  network                 = google_compute_network.vpc_network.id
+  private_ip_google_access = true
+}
+
+resource "google_compute_firewall" "allow_http_https" {
+  name    = "allow-http-https"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80", "443"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
+}
+
+resource "google_compute_firewall" "allow_ssh_webapp" {
+  name    = "allow-ssh-webapp"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
+}
+
+resource "google_compute_instance" "web_instance" {
+  name         = "web-server"
+  machine_type = "e2-micro"
+  zone         = var.zone
+
+  tags = ["web-server", "http-server", "https-server"]
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    subnetwork = google_compute_subnetwork.public_subnet.id
+    access_config {}
+  }
+
+  metadata_startup_script = <<-EOT
+    #!/bin/bash
+    sudo apt update
+    sudo apt install -y nginx google-fluentd
+    sudo systemctl enable nginx
+    sudo systemctl start nginx
+    sudo systemctl enable google-fluentd
+    sudo systemctl start google-fluentd
+  EOT
+}
+
+resource "google_monitoring_notification_channel" "email" {
+  display_name = "Email Notification"
+  type         = "email"
+  labels = {
+    email_address = var.email_alert
+  }
+}
+
+resource "google_monitoring_alert_policy" "cpu_alert" {
+  display_name = "High CPU Alert"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "VM CPU > 80%"
+    condition_threshold {
+      filter = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.web_instance.instance_id}\""
+      duration = "60s"
+      comparison = "COMPARISON_GT"
+      threshold_value = 0.8
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.id]
+  enabled = true
+}
