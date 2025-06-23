@@ -27,7 +27,7 @@ steps:
 
   # Step 4: Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
-    args: ['apply', '-auto-approve']
+    args: ['apply', '-auto-approve', '-var-file=terraform.tfvars']
 
   # Step 5: Run tests
   - name: 'gcr.io/cloud-builders/gcloud'
