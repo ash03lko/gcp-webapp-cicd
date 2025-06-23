@@ -2,8 +2,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-
-# 1️⃣ Run automated tests — must pass to continue
+# 1️⃣ Run automated tests
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args:
@@ -19,13 +18,15 @@ steps:
       fi
       echo "✅ All tests passed."
 
-# 2️⃣ Deploy app files to the VM with retry logic for SSH readiness
+# 2️⃣ Wait and deploy app files
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
-      echo "⏳ Waiting for SSH to become ready..."
+      echo "⏳ Sleeping 60 seconds to let VM initialize..."
+      sleep 60
+      echo "⏳ Attempting SCP to VM..."
       for i in {1..5}; do
         if gcloud compute scp --zone=us-central1-a --recurse ./app/* web-server:/var/www/html; then
           echo "✅ File copy succeeded"
@@ -38,7 +39,7 @@ steps:
       echo "❌ File copy failed after retries"
       exit 1
 
-# 3️⃣ Restart Nginx to serve the new app
+# 3️⃣ Restart Nginx
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
     [
