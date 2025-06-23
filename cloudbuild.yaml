@@ -29,6 +29,24 @@ steps:
       - |
         terraform init
 
+  # ⚙️ Terraform validate (optional but good practice)
+  - name: 'hashicorp/terraform:1.6.6'
+    dir: '/workspace'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform validate
+
+  # ⚙️ Terraform plan (optional but useful for logging plan output)
+  - name: 'hashicorp/terraform:1.6.6'
+    dir: '/workspace'
+    entrypoint: 'sh'
+    args:
+      - '-c'
+      - |
+        terraform plan
+
   # ⚙️ Terraform import using script
   - name: 'hashicorp/terraform:1.6.6'
     dir: '/workspace'
