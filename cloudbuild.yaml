@@ -2,14 +2,13 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Step 1: Cleanup (best effort)
+  # Step 1: Cleanup
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         echo "🧹 Cleaning up existing GCP resources..."
-        set -e
         gcloud compute instances delete public-web-server --zone=us-central1-a --quiet || true
         gcloud compute networks subnets delete public-subnet --region=us-central1 --quiet || true
         gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
@@ -29,23 +28,24 @@ steps:
   - name: 'hashicorp/terraform:1.6.6'
     args: ['apply', '-auto-approve']
 
-  # Step 5: Get external IP as a substitution variable
+  # Step 5: Get external IP
   - name: 'hashicorp/terraform:1.6.6'
-    id: 'get-ip'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
         terraform output -raw web_server_external_ip > /workspace/external_ip.txt
+        echo "✅ External IP captured: $(cat /workspace/external_ip.txt)"
 
-  # Step 6: Run tests using curl image
+  # Step 6: Run test
   - name: 'curlimages/curl:7.87.0'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
         IP=$(cat /workspace/external_ip.txt)
-        echo "🧪 Testing app at http://$IP"
+        echo "🌐 Testing app at http://$IP"
+        chmod +x ./run_test.sh
         ./run_test.sh $IP
 
 timeout: 1200s
