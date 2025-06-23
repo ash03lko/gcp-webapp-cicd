@@ -5,29 +5,29 @@ steps:
       [
         'build',
         '-t',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app',
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest',
         '.'
       ]
 
-  # Step 2: Push Docker image
+  # Step 2: Push Docker image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
     args:
       [
         'push',
-        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app'
+        'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
       ]
 
-  # Step 3: Cleanup GCP resources (if needed)
+  # Step 3: Cleanup previous resources
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "🧹 Cleaning up existing resources..."
-        gcloud compute instances delete web-server --zone=us-central1-a --quiet || echo "✅ No VM found or already deleted"
-        gcloud compute firewall-rules delete allow-http-https --quiet || echo "✅ No firewall found"
-        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || echo "✅ No subnet found"
-        gcloud compute networks delete my-vpc --quiet || echo "✅ No VPC found"
+        echo "🧹 Cleaning up existing GCP resources..."
+        gcloud compute instances delete web-server --zone=us-central1-a --quiet || true
+        gcloud compute firewall-rules delete allow-http-https --quiet || true
+        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
+        gcloud compute networks delete my-vpc --quiet || true
 
   # Step 4: Terraform init
   - name: 'hashicorp/terraform:1.6.6'
@@ -37,27 +37,16 @@ steps:
   - name: 'hashicorp/terraform:1.6.6'
     args: ['validate']
 
-  # Step 6: Unlock stale state lock (if any)
-  - name: 'gcr.io/cloud-builders/gsutil'
-    entrypoint: 'bash'
-    args:
-      - '-c'
-      - |
-        LOCK_FILE="gs://graphite-store-463414-p2_cloudbuild/terraform/state/default.tflock"
-        if gsutil ls $LOCK_FILE; then
-          echo "⚠️ Stale lock file found. Deleting..."
-          gsutil rm $LOCK_FILE
-        else
-          echo "✅ No stale lock file found"
-        fi
-
-  # Step 7: Terraform apply
+  # Step 6: Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
     args:
-      - 'apply'
-      - '-auto-approve'
+      [
+        'apply',
+        '-auto-approve',
+        '-lock-timeout=60s'
+      ]
 
-  # Step 8: Run tests using run_test.sh
+  # Step 7: Run app tests using your separate script
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -66,4 +55,7 @@ steps:
         chmod +x run_test.sh
         ./run_test.sh
 
-timeout: 1200s # 20 minutes
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s
