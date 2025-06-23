@@ -4,11 +4,13 @@ provider "google" {
   zone    = "us-central1-a"
 }
 
+# VPC
 resource "google_compute_network" "vpc_network" {
   name                    = "my-vpc"
   auto_create_subnetworks  = false
 }
 
+# Public Subnet
 resource "google_compute_subnetwork" "public_subnet" {
   name          = "public-subnet"
   ip_cidr_range = "10.0.1.0/24"
@@ -16,14 +18,16 @@ resource "google_compute_subnetwork" "public_subnet" {
   network       = google_compute_network.vpc_network.id
 }
 
+# Private Subnet
 resource "google_compute_subnetwork" "private_subnet" {
-  name                     = "private-subnet"
-  ip_cidr_range            = "10.0.2.0/24"
-  region                   = "us-central1"
-  network                  = google_compute_network.vpc_network.id
-  private_ip_google_access  = true
+  name                    = "private-subnet"
+  ip_cidr_range           = "10.0.2.0/24"
+  region                  = "us-central1"
+  network                 = google_compute_network.vpc_network.id
+  private_ip_google_access = true
 }
 
+# Allow HTTP/HTTPS firewall rule
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc_network.name
@@ -36,6 +40,7 @@ resource "google_compute_firewall" "allow_http_https" {
   source_ranges = ["0.0.0.0/0"]
 }
 
+# Allow SSH via IAP
 resource "google_compute_firewall" "allow_ssh_from_iap" {
   name    = "allow-ssh-from-iap"
   network = google_compute_network.vpc_network.name
@@ -49,6 +54,7 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   target_tags   = ["iap-ssh-enabled"]
 }
 
+# Compute Instance
 resource "google_compute_instance" "public_web_server" {
   name         = "public-web-server"
   machine_type = "e2-medium"
@@ -65,7 +71,7 @@ resource "google_compute_instance" "public_web_server" {
     network    = google_compute_network.vpc_network.id
     subnetwork = google_compute_subnetwork.public_subnet.id
 
-    access_config {}  # Creates external IP
+    access_config {} # Allocates external IP
   }
 
   metadata = {
@@ -91,6 +97,7 @@ resource "google_compute_instance" "public_web_server" {
   }
 }
 
+# Monitoring - Email notification channel
 resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
@@ -100,6 +107,7 @@ resource "google_monitoring_notification_channel" "email_channel" {
   enabled = true
 }
 
+# Monitoring - CPU alert policy
 resource "google_monitoring_alert_policy" "cpu_alert" {
   display_name = "High CPU Usage Alert"
   combiner     = "OR"
@@ -108,7 +116,7 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   conditions {
     display_name = "VM CPU > 80%"
     condition_threshold {
-      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=monitoring.regex.full_match(\"${google_compute_instance.public_web_server.instance_id}\")"
+      filter = "resource.type=\"gce_instance\" AND metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.public_web_server.instance_id}\""
       comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "60s"
