@@ -2,7 +2,7 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Step 1: Cleanup old resources
+  # Step 1: Clean up existing GCP resources
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
@@ -11,9 +11,10 @@ steps:
         echo "🧹 Cleaning up existing GCP resources..."
         set -e
         gcloud compute instances delete public-web-server --zone=us-central1-a --quiet || true
+        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
+        gcloud compute networks subnets delete public-subnet --region=us-central1 --quiet || true
         gcloud compute firewall-rules list --filter="network=my-vpc" --format="value(name)" | \
           xargs -r -n1 gcloud compute firewall-rules delete --quiet || true
-        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
         gcloud compute networks delete my-vpc --quiet || true
 
   # Step 2: Terraform init
@@ -24,9 +25,17 @@ steps:
   - name: 'hashicorp/terraform:1.6.6'
     args: ['validate']
 
-  # Step 4: Terraform apply
-  - name: 'hashicorp/terraform:1.6.6'
-    args: ['apply', '-auto-approve']
+  # Step 4: Terraform apply with lock timeout & retry
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "🌱 Applying Terraform with lock timeout..."
+        for i in {1..3}; do
+          terraform apply -auto-approve -lock-timeout=60s && break || \
+          { echo "Terraform apply failed on attempt $i. Retrying in 10s..."; sleep 10; }
+        done
 
   # Step 5: Run tests
   - name: 'gcr.io/cloud-builders/gcloud'
