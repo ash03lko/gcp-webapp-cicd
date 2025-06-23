@@ -10,7 +10,7 @@ steps:
       chmod +x test.sh
       ./test.sh
 
-# 2️⃣ Download SSH keys + Sleep + SCP files
+# 2️⃣ Download SSH keys + SCP files
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -20,19 +20,17 @@ steps:
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key /workspace/cloudbuild_vm_key
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
       chmod 400 /workspace/cloudbuild_vm_key
-      chmod 400 /workspace/cloudbuild_vm_key.pub
+
+      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+      echo "📌 VM IP: $VM_IP"
 
       echo "⏳ Sleeping 60 seconds for VM readiness..."
       sleep 60
 
       echo "⏳ Attempting SCP with static SSH key..."
       for i in {1..5}; do
-        gcloud compute scp \
-          --zone=us-central1-a \
-          --ssh-key-file=/workspace/cloudbuild_vm_key \
-          --recurse \
-          ./app/* \
-          cloudbuild@web-server:/var/www/html && break || {
+        scp -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no \
+          -r ./app/* cloudbuild@$VM_IP:/var/www/html && break || {
             echo "⚠️ Attempt $i failed. Retrying in 10s..."
             sleep 10
           }
@@ -44,19 +42,17 @@ steps:
   args:
     - '-c'
     - |
+      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+
       echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
-      gcloud compute ssh \
-        --zone=us-central1-a \
-        --ssh-key-file=/workspace/cloudbuild_vm_key \
-        cloudbuild@web-server \
-        --command="sudo systemctl restart nginx && \
-                   sudo apt-get update && \
-                   sudo apt-get install -y google-fluentd && \
-                   sudo systemctl enable google-fluentd && \
-                   sudo systemctl restart google-fluentd"
+      ssh -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no cloudbuild@$VM_IP \
+      "sudo systemctl restart nginx && \
+       sudo apt-get update && \
+       sudo apt-get install -y google-fluentd && \
+       sudo systemctl enable google-fluentd && \
+       sudo systemctl restart google-fluentd"
 
 timeout: 900s
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  default_logs_bucket_behavior: REGIONAL_USER_OWNED_BUCKET
