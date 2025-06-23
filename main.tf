@@ -4,15 +4,16 @@ provider "google" {
   zone    = "us-central1-a"
 }
 
-# VPC
+# VPC network
 resource "google_compute_network" "vpc_network" {
-  name = "my-vpc"
+  name                    = "my-vpc"
+  auto_create_subnetworks  = false
 }
 
 # Public subnet
 resource "google_compute_subnetwork" "public_subnet" {
   name          = "public-subnet"
-  ip_cidr_range = "11.0.1.0/24"
+  ip_cidr_range = "10.0.1.0/24"
   region        = "us-central1"
   network       = google_compute_network.vpc_network.id
 }
@@ -23,9 +24,10 @@ resource "google_compute_subnetwork" "private_subnet" {
   ip_cidr_range = "10.0.2.0/24"
   region        = "us-central1"
   network       = google_compute_network.vpc_network.id
+  private_ip_google_access = true
 }
 
-# Allow HTTP/HTTPS
+# Allow HTTP/HTTPS for public subnet
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc_network.name
@@ -52,9 +54,9 @@ resource "google_compute_firewall" "allow_ssh_from_iap" {
   target_tags   = ["iap-ssh-enabled"]
 }
 
-# VM instance
-resource "google_compute_instance" "web_server" {
-  name         = "web-server"
+# Public VM instance
+resource "google_compute_instance" "public_web_server" {
+  name         = "public-web-server"
   machine_type = "e2-medium"
   zone         = "us-central1-a"
   tags         = ["http-server", "iap-ssh-enabled"]
@@ -70,7 +72,7 @@ resource "google_compute_instance" "web_server" {
     subnetwork = google_compute_subnetwork.public_subnet.id
 
     access_config {
-      # ephemeral external IP
+      # Provides external IP
     }
   }
 
@@ -109,7 +111,39 @@ resource "google_compute_instance" "web_server" {
   }
 }
 
-# Notification channel
+# Private VM instance (no external IP)
+resource "google_compute_instance" "private_instance" {
+  name         = "private-instance"
+  machine_type = "e2-medium"
+  zone         = "us-central1-a"
+  tags         = ["iap-ssh-enabled"]
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+    }
+  }
+
+  network_interface {
+    network    = google_compute_network.vpc_network.id
+    subnetwork = google_compute_subnetwork.private_subnet.id
+    # No access_config block => no external IP
+  }
+
+  metadata = {
+    enable-oslogin = "TRUE"
+  }
+
+  service_account {
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  labels = {
+    goog-terraform-provisioned = "true"
+  }
+}
+
+# Monitoring Notification Channel
 resource "google_monitoring_notification_channel" "email_channel" {
   display_name = "Email Alert"
   type         = "email"
@@ -119,7 +153,7 @@ resource "google_monitoring_notification_channel" "email_channel" {
   enabled = true
 }
 
-# Alerting policy
+# Alert Policy for CPU
 resource "google_monitoring_alert_policy" "cpu_alert" {
   display_name = "High CPU Usage Alert"
   combiner     = "OR"
@@ -128,7 +162,7 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   conditions {
     display_name = "VM CPU > 80%"
     condition_threshold {
-      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=monitoring.regex.full_match(\"${google_compute_instance.web_server.instance_id}\")"
+      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=monitoring.regex.full_match(\"${google_compute_instance.public_web_server.instance_id}\")"
       comparison      = "COMPARISON_GT"
       threshold_value = 0.8
       duration        = "60s"
@@ -142,5 +176,3 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
 
   notification_channels = [google_monitoring_notification_channel.email_channel.name]
 }
-
-
