@@ -20,9 +20,9 @@ steps:
     - '-c'
     - |
       echo "🔍 Checking for existing VM..."
-      VM_EXISTS=$(gcloud compute instances list --filter="name=web-server" --format="value(name)")
-      if [ "$VM_EXISTS" != "" ]; then
-        echo "⚠️ Existing VM found: $VM_EXISTS — deleting..."
+      VM_EXISTS=$$(gcloud compute instances list --filter="name=web-server" --format="value(name)")
+      if [ "$$VM_EXISTS" != "" ]; then
+        echo "⚠️ Existing VM found: $$VM_EXISTS — deleting..."
         gcloud compute instances delete web-server --zone=us-central1-a --quiet
       else
         echo "✅ No existing VM to delete."
