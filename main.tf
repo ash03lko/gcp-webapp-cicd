@@ -17,11 +17,11 @@ resource "google_compute_subnetwork" "public_subnet" {
 }
 
 resource "google_compute_subnetwork" "private_subnet" {
-  name          = "private-subnet"
-  ip_cidr_range = "10.0.2.0/24"
-  region        = "us-central1"
-  network       = google_compute_network.vpc_network.id
-  private_ip_google_access = true
+  name                     = "private-subnet"
+  ip_cidr_range            = "10.0.2.0/24"
+  region                   = "us-central1"
+  network                  = google_compute_network.vpc_network.id
+  private_ip_google_access  = true
 }
 
 resource "google_compute_firewall" "allow_http_https" {
@@ -65,9 +65,7 @@ resource "google_compute_instance" "public_web_server" {
     network    = google_compute_network.vpc_network.id
     subnetwork = google_compute_subnetwork.public_subnet.id
 
-    access_config {
-      # External IP
-    }
+    access_config {}  # Creates external IP
   }
 
   metadata = {
@@ -81,6 +79,7 @@ resource "google_compute_instance" "public_web_server" {
     apt-get install -y nginx
     systemctl enable nginx
     systemctl start nginx
+    echo '<h1>Welcome to Nginx on GCP!</h1>' > /var/www/html/index.nginx-debian.html
   EOT
 
   service_account {
