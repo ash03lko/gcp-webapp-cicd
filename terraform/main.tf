@@ -27,7 +27,20 @@ resource "google_compute_firewall" "allow_http_https" {
   }
 
   source_ranges = ["0.0.0.0/0"]
-  target_tags   = ["http-server", "https-server"]
+  target_tags   = ["web-server"]
+}
+
+resource "google_compute_firewall" "allow_ssh" {
+  name    = "allow-ssh"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+  target_tags   = ["web-server"]
 }
 
 resource "google_monitoring_notification_channel" "email" {
@@ -65,7 +78,7 @@ resource "google_compute_instance" "web_instance" {
   machine_type = "e2-micro"
   zone         = var.zone
 
-  tags = ["http-server", "https-server"]
+  tags = ["web-server"]
 
   boot_disk {
     initialize_params {
