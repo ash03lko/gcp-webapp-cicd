@@ -42,16 +42,24 @@ steps:
       '--metadata=startup-script=sudo apt update && sudo apt install -y nginx google-fluentd && sudo systemctl enable nginx && sudo systemctl start nginx && sudo systemctl enable google-fluentd && sudo systemctl start google-fluentd'
     ]
 
-# 4️⃣ Copy app files to the VM
+# 4️⃣ Copy app files to the VM with retry logic for SSH readiness
 - name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
-    [
-      'compute', 'scp',
-      '--zone=us-central1-a',
-      '--recurse',
-      './app/*',
-      'web-server:/var/www/html'
-    ]
+    - '-c'
+    - |
+      echo "⏳ Waiting for SSH to become ready..."
+      for i in {1..5}; do
+        if gcloud compute scp --zone=us-central1-a --recurse ./app/* web-server:/var/www/html; then
+          echo "✅ File copy succeeded"
+          exit 0
+        else
+          echo "⚠️ Attempt $$i failed. Retrying in 10s..."
+          sleep 10
+        fi
+      done
+      echo "❌ File copy failed after retries"
+      exit 1
 
 # 5️⃣ Restart Nginx to serve the new app
 - name: 'gcr.io/cloud-builders/gcloud'
