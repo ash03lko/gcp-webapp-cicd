@@ -12,38 +12,14 @@ steps:
       echo "🚀 Running automated tests..."
       chmod +x test.sh
       ./test.sh
-
-# 2️⃣ Cleanup: Check for existing VM and delete if found (tolerate not found errors)
-- name: 'gcr.io/cloud-builders/gcloud'
-  entrypoint: 'bash'
-  args:
-    - '-c'
-    - |
-      echo "🔍 Checking for existing VM..."
-      VM_EXISTS=$$(gcloud compute instances list --filter="name=web-server AND zone:(us-central1-a)" --format="value(name)")
-      if [ "$$VM_EXISTS" != "" ]; then
-        echo "⚠️ Existing VM found: $$VM_EXISTS — attempting delete..."
-        gcloud compute instances delete web-server --zone=us-central1-a --quiet || \
-          echo "⚠️ VM not found at delete time — continuing."
-      else
-        echo "✅ No existing VM to delete."
+      TEST_EXIT_CODE=$$?
+      if [ $$TEST_EXIT_CODE -ne 0 ]; then
+        echo "❌ Tests failed. Exiting build."
+        exit $$TEST_EXIT_CODE
       fi
+      echo "✅ All tests passed."
 
-# 3️⃣ Create a fresh VM with Nginx + Cloud Logging agent
-- name: 'gcr.io/cloud-builders/gcloud'
-  args:
-    [
-      'compute', 'instances', 'create', 'web-server',
-      '--zone=us-central1-a',
-      '--machine-type=e2-micro',
-      '--subnet=public-subnet',
-      '--tags=http-server,https-server',
-      '--image-family=debian-11',
-      '--image-project=debian-cloud',
-      '--metadata=startup-script=sudo apt update && sudo apt install -y nginx google-fluentd && sudo systemctl enable nginx && sudo systemctl start nginx && sudo systemctl enable google-fluentd && sudo systemctl start google-fluentd'
-    ]
-
-# 4️⃣ Copy app files to the VM with retry logic for SSH readiness
+# 2️⃣ Deploy app files to the VM with retry logic for SSH readiness
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -62,7 +38,7 @@ steps:
       echo "❌ File copy failed after retries"
       exit 1
 
-# 5️⃣ Restart Nginx to serve the new app
+# 3️⃣ Restart Nginx to serve the new app
 - name: 'gcr.io/cloud-builders/gcloud'
   args:
     [
