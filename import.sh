@@ -21,4 +21,4 @@ terraform state list | grep google_compute_firewall.allow_ssh_from_iap || \
 terraform state list | grep google_compute_instance.web_server || \
   terraform import google_compute_instance.web_server projects/graphite-store-463414-p2/zones/us-central1-a/instances/web-server
 
-echo "✅ Import completed."
+echo "✅ Import completed
