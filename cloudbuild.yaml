@@ -1,3 +1,6 @@
+options:
+  logging: CLOUD_LOGGING_ONLY
+
 steps:
 
 # 1️⃣ Run automated tests — must pass to continue
@@ -9,7 +12,6 @@ steps:
       echo "🚀 Running automated tests..."
       chmod +x test.sh
       ./test.sh
-  # If this fails, the build will stop and no further steps will run.
 
 # 2️⃣ Cleanup: Check for existing VM and delete if found
 - name: 'gcr.io/cloud-builders/gcloud'
