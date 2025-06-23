@@ -28,7 +28,7 @@ steps:
       - |
         terraform init
 
-  # ⚙️ Terraform plan (optional sanity check)
+  # ⚙️ Terraform validate
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
@@ -36,9 +36,9 @@ steps:
       - |
         terraform validate
 
-  # ⚙️ Terraform import using script (absolute path + ls debug)
-  - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'sh'
+  # ⚙️ Run import.sh using a proper image with shell
+  - name: 'gcr.io/cloud-builders/gcloud'   # <-- switched from terraform image
+    entrypoint: 'bash'
     args:
       - '-c'
       - |
