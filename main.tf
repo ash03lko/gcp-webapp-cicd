@@ -143,6 +143,4 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
   notification_channels = [google_monitoring_notification_channel.email_channel.name]
 }
 
-output "web_server_external_ip" {
-  value = google_compute_instance.web_server.network_interface[0].access_config[0].nat_ip
-}
+
