@@ -46,8 +46,8 @@ resource "google_compute_firewall" "allow_http_https" {
   target_tags   = ["web-server"]
 }
 
-resource "google_compute_firewall" "allow_ssh" {
-  name    = "allow-ssh"
+resource "google_compute_firewall" "allow_ssh_webapp" {
+  name    = "allow-ssh-webapp"
   network = google_compute_network.vpc_network.name
 
   allow {
