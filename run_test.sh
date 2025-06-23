@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-IP=$1
+IP="$1"
 
 if [ -z "$IP" ]; then
   echo "❌ Usage: $0 <external_ip>"
@@ -10,7 +10,7 @@ fi
 
 echo "🔍 Running health check against http://$IP ..."
 
-STATUS=$(curl -s -o /dev/null -w "%{http_code}" "http://$IP")
+STATUS=$(curl --connect-timeout 5 --max-time 10 -s -o /dev/null -w "%{http_code}" "http://$IP")
 
 if [ "$STATUS" -eq 200 ]; then
   echo "✅ App is healthy (HTTP $STATUS)"
