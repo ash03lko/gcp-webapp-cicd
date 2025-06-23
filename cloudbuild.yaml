@@ -2,43 +2,58 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Step 1: Build & push Docker image
+  # Step 1: Build Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build', '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app', '.'
-    ]
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'push', 'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app'
-    ]
+    args:
+      [
+        'build',
+        '-t',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app',
+        '.'
+      ]
 
-  # Step 2: Clean up GCP resources if exist
+  # Step 2: Push Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'push',
+        'us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/my-app'
+      ]
+
+  # Step 3: Cleanup old resources
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         echo "🧹 Cleaning up existing GCP resources..."
-        gcloud compute firewall-rules list --filter="network=my-vpc" --format="value(name)" | \
-        xargs -r -n1 gcloud compute firewall-rules delete --quiet || true
+        set -e
         gcloud compute instances delete web-server --zone=us-central1-a --quiet || true
+        gcloud compute firewall-rules list --filter="network=my-vpc" --format="value(name)" | \
+          xargs -r -n1 gcloud compute firewall-rules delete --quiet || true
         gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
         gcloud compute networks delete my-vpc --quiet || true
 
-  # Step 3: Terraform init
+  # Step 4: Terraform init
   - name: 'hashicorp/terraform:1.6.6'
     args: ['init']
 
-  # Step 4: Terraform validate
+  # Step 5: Terraform validate
   - name: 'hashicorp/terraform:1.6.6'
     args: ['validate']
 
-  # Step 5: Terraform apply
+  # Step 6: Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
     args: ['apply', '-auto-approve']
 
-  # Step 6: Run tests
+  # Step 7: Run tests
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
-      - './run_test.sh'
+      - '-c'
+      - |
+        echo "🔍 Running tests..."
+        chmod +x ./run_test.sh
+        ./run_test.sh
+
+timeout: 1200s  # 20 minutes
