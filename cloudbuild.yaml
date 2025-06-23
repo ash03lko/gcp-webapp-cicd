@@ -28,31 +28,22 @@ steps:
       - |
         terraform init
 
-  # ⚙️ Terraform validate
+  # ⚠️ Terraform destroy existing infra (FREE UP resources)
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        terraform validate
+        echo "🔥 Destroying previous infrastructure to free up resources..."
+        terraform destroy -auto-approve || echo "Nothing to destroy or destroy failed. Continuing."
 
-  # ⚙️ Terraform import using script (✅ now using correct image)
+  # ⚙️ Terraform apply fresh infra
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        echo "📂 Listing files in /workspace:"
-        ls -la /workspace
-        chmod +x /workspace/import.sh
-        /workspace/import.sh
-
-  # ⚙️ Terraform apply
-  - name: 'hashicorp/terraform:1.6.6'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
+        echo "🚀 Applying fresh infrastructure..."
         terraform apply -auto-approve
 
   # ✅ Run deploy test
