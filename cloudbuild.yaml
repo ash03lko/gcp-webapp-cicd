@@ -2,13 +2,12 @@ options:
   logging: CLOUD_LOGGING_ONLY
 
 steps:
-  # Step 1: Cleanup (best effort)
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        echo "🧹 Cleaning up existing resources..."
+        echo "🧹 Cleaning up..."
         gcloud compute instances delete public-web-server --zone=us-central1-a --quiet || true
         gcloud compute networks subnets delete public-subnet --region=us-central1 --quiet || true
         gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || true
@@ -16,35 +15,30 @@ steps:
         gcloud compute firewall-rules delete allow-ssh-from-iap --quiet || true
         gcloud compute networks delete my-vpc --quiet || true
 
-  # Step 2: Terraform init
   - name: 'hashicorp/terraform:1.6.6'
     args: ['init']
 
-  # Step 3: Terraform validate
   - name: 'hashicorp/terraform:1.6.6'
     args: ['validate']
 
-  # Step 4: Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
     args: ['apply', '-auto-approve']
 
-  # Step 5: Get external IP and save to file
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        terraform output -raw web_server_external_ip > /workspace/external_ip.txt
-        echo "Captured external IP: $(cat /workspace/external_ip.txt)"
+        terraform output -raw web_server_external_ip > /workspace/ip.txt
+        echo "Captured IP: $(cat /workspace/ip.txt)"
 
-  # Step 6: Run tests
   - name: 'curlimages/curl:7.87.0'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        IP=$(cat /workspace/external_ip.txt)
-        echo "Testing http://$IP ..."
+        IP=$(cat /workspace/ip.txt)
+        echo "Running test on http://$IP"
         chmod +x ./run_test.sh
         ./run_test.sh $IP
 
