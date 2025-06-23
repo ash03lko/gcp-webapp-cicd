@@ -20,6 +20,19 @@ steps:
         'us-central1-docker.pkg.dev/graphite-store-463414-p2/my-repo/my-app:latest'
       ]
 
+  # ⚠️ Manual cleanup to prevent 409 conflicts
+  - name: 'gcr.io/cloud-builders/gcloud'
+    entrypoint: 'bash'
+    args:
+      - '-c'
+      - |
+        echo "🧹 Cleaning up existing GCP resources..."
+        gcloud compute instances delete web-server --zone=us-central1-a --quiet || echo "✅ No VM found or already deleted"
+        gcloud compute firewall-rules delete allow-http-https --quiet || echo "✅ No firewall allow-http-https found"
+        gcloud compute firewall-rules delete allow-ssh-from-iap --quiet || echo "✅ No firewall allow-ssh-from-iap found"
+        gcloud compute networks subnets delete private-subnet --region=us-central1 --quiet || echo "✅ No private subnet found"
+        gcloud compute networks delete my-vpc --quiet || echo "✅ No VPC found"
+
   # ⚙️ Terraform init
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
@@ -28,14 +41,13 @@ steps:
       - |
         terraform init
 
-  # ⚠️ Terraform destroy existing infra (FREE UP resources)
+  # ⚙️ Terraform validate
   - name: 'hashicorp/terraform:1.6.6'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        echo "🔥 Destroying previous infrastructure to free up resources..."
-        terraform destroy -auto-approve || echo "Nothing to destroy or destroy failed. Continuing."
+        terraform validate
 
   # ⚙️ Terraform apply fresh infra
   - name: 'hashicorp/terraform:1.6.6'
@@ -46,7 +58,7 @@ steps:
         echo "🚀 Applying fresh infrastructure..."
         terraform apply -auto-approve
 
-  # ✅ Run deploy test
+  # ✅ Run test script
   - name: 'gcr.io/cloud-builders/gcloud'
     entrypoint: 'bash'
     args:
