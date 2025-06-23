@@ -38,7 +38,7 @@ steps:
       - '-c'
       - |
         IP=$(cat /workspace/ip.txt)
-        echo "Running health check on http://$IP"
+        echo "Running test on http://$IP"
         chmod +x ./run_test.sh
         ./run_test.sh $IP
 
