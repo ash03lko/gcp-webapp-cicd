@@ -22,46 +22,33 @@ steps:
 
   # ⚙️ Terraform init
   - name: 'hashicorp/terraform:1.6.6'
-    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
         terraform init
 
-  # ⚙️ Terraform validate (optional but good practice)
+  # ⚙️ Terraform plan (optional sanity check)
   - name: 'hashicorp/terraform:1.6.6'
-    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
         terraform validate
 
-  # ⚙️ Terraform plan (optional but useful for logging plan output)
+  # ⚙️ Terraform import using script (absolute path + ls debug)
   - name: 'hashicorp/terraform:1.6.6'
-    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
       - |
-        terraform plan
-
-  # ⚙️ Terraform import using script
-  - name: 'hashicorp/terraform:1.6.6'
-    dir: '/workspace'
-    entrypoint: 'sh'
-    args:
-      - '-c'
-      - |
-        echo "📂 Files in /workspace:"
+        echo "📂 Listing files in /workspace:"
         ls -la /workspace
-        chmod +x import.sh
-        ./import.sh
+        chmod +x /workspace/import.sh
+        /workspace/import.sh
 
   # ⚙️ Terraform apply
   - name: 'hashicorp/terraform:1.6.6'
-    dir: '/workspace'
     entrypoint: 'sh'
     args:
       - '-c'
@@ -70,12 +57,11 @@ steps:
 
   # ✅ Run deploy test
   - name: 'gcr.io/cloud-builders/gcloud'
-    dir: '/workspace'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
-        chmod +x run_test.sh
-        ./run_test.sh
+        chmod +x /workspace/run_test.sh
+        /workspace/run_test.sh
 
 timeout: 1800s
