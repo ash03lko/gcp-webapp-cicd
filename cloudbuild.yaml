@@ -23,7 +23,7 @@ steps:
       for i in {1..5}; do
         gcloud compute scp \
           --zone=us-central1-a \
-          --ssh-key-file=cloudbuild_vm_key \
+          --ssh-key-file=/workspace/cloudbuild_vm_key \
           --recurse \
           ./app/* \
           cloudbuild@web-server:/var/www/html && break || {
@@ -34,13 +34,14 @@ steps:
 
 # 3️⃣ Restart Nginx to serve the new app
 - name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
   args:
-    [
-      'compute', 'ssh',
-      '--zone=us-central1-a',
-      '--ssh-key-file=cloudbuild_vm_key',
-      'cloudbuild@web-server',
-      '--command=sudo systemctl restart nginx'
-    ]
+    - '-c'
+    - |
+      gcloud compute ssh \
+        --zone=us-central1-a \
+        --ssh-key-file=/workspace/cloudbuild_vm_key \
+        cloudbuild@web-server \
+        --command="sudo systemctl restart nginx"
 
 timeout: 900s
