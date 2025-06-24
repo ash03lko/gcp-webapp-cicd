@@ -1,7 +1,8 @@
 provider "google" {
-  project = var.project_id
-  region  = var.region
-  zone    = var.zone
+  project     = var.project_id
+  region      = var.region
+  zone        = var.zone
+  credentials = file("~/.config/gcloud/application_default_credentials.json")
 }
 
 # VPC
@@ -19,10 +20,10 @@ resource "google_compute_subnetwork" "public" {
 
 # Private subnet
 resource "google_compute_subnetwork" "private" {
-  name                   = "private-subnet"
-  network                = google_compute_network.vpc.id
-  ip_cidr_range          = "10.0.2.0/24"
-  region                 = var.region
+  name                    = "private-subnet"
+  network                 = google_compute_network.vpc.id
+  ip_cidr_range           = "10.0.2.0/24"
+  region                  = var.region
   private_ip_google_access = true
 }
 
@@ -87,8 +88,8 @@ resource "google_monitoring_notification_channel" "email_channel" {
 
 # CPU alert
 resource "google_monitoring_alert_policy" "cpu_alert" {
-  display_name = "High CPU Alert"
-  combiner     = "OR"
+  display_name          = "High CPU Alert"
+  combiner              = "OR"
   notification_channels = [google_monitoring_notification_channel.email_channel.id]
 
   conditions {
@@ -99,8 +100,8 @@ resource "google_monitoring_alert_policy" "cpu_alert" {
       threshold_value = 0.8
       duration        = "60s"
       aggregations {
-        alignment_period    = "60s"
-        per_series_aligner  = "ALIGN_MEAN"
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_MEAN"
       }
     }
   }
