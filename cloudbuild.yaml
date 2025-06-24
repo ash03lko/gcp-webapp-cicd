@@ -6,6 +6,7 @@ steps:
   args:
     - '-c'
     - |
+      set -e
       echo "🚀 Running automated tests..."
       chmod +x test.sh
       ./test.sh
@@ -16,6 +17,7 @@ steps:
   args:
     - '-c'
     - |
+      set -e
       echo "⬇️ Downloading SSH keys from Cloud Storage..."
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key /workspace/cloudbuild_vm_key
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
@@ -23,6 +25,10 @@ steps:
 
       echo "📌 Fetching VM IP..."
       VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+      if [[ -z "$VM_IP" ]]; then
+        echo "❌ Could not fetch VM IP. Exiting."
+        exit 1
+      fi
       echo "📌 VM IP is $VM_IP"
 
       echo "⏳ Sleeping 60 seconds for VM readiness..."
@@ -43,8 +49,13 @@ steps:
   args:
     - '-c'
     - |
+      set -e
       echo "📌 Fetching VM IP..."
       VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+      if [[ -z "$VM_IP" ]]; then
+        echo "❌ Could not fetch VM IP. Exiting."
+        exit 1
+      fi
       echo "📌 VM IP is $VM_IP"
 
       echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
