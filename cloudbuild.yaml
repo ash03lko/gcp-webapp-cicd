@@ -21,7 +21,8 @@ steps:
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
       chmod 400 /workspace/cloudbuild_vm_key
 
-      echo "📌 VM IP is ${_VMIP}"
+      VM_IP="34.123.45.67"
+      echo "📌 Using static VM IP: $VM_IP"
 
       echo "⏳ Sleeping 60 seconds for VM readiness..."
       sleep 60
@@ -29,7 +30,7 @@ steps:
       echo "⏳ Attempting SCP with static SSH key..."
       for i in {1..5}; do
         scp -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no \
-          -r ./app/* cloudbuild@${_VMIP}:/var/www/html && break || {
+          -r ./app/* cloudbuild@$VM_IP:/var/www/html && break || {
             echo "⚠️ Attempt $i failed. Retrying in 10s..."
             sleep 10
           }
@@ -41,10 +42,11 @@ steps:
   args:
     - '-c'
     - |
-      echo "📌 VM IP is ${_VMIP}"
+      VM_IP="34.123.45.67"
+      echo "📌 Using static VM IP: $VM_IP"
 
       echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
-      ssh -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no cloudbuild@${_VMIP} \
+      ssh -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no cloudbuild@$VM_IP \
       "sudo systemctl restart nginx && \
        sudo apt-get update && \
        sudo apt-get install -y google-fluentd && \
