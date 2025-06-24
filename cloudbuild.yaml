@@ -10,7 +10,7 @@ steps:
       chmod +x test.sh
       ./test.sh
 
-# 2️⃣ Download SSH keys + SCP files
+# 2️⃣ Download SSH keys + SCP files to VM
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
@@ -21,8 +21,9 @@ steps:
       gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
       chmod 400 /workspace/cloudbuild_vm_key
 
-      VM_IP="34.123.45.67"
-      echo "📌 Using static VM IP: $VM_IP"
+      echo "📌 Fetching VM IP..."
+      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+      echo "📌 VM IP is $VM_IP"
 
       echo "⏳ Sleeping 60 seconds for VM readiness..."
       sleep 60
@@ -42,8 +43,9 @@ steps:
   args:
     - '-c'
     - |
-      VM_IP="34.123.45.67"
-      echo "📌 Using static VM IP: $VM_IP"
+      echo "📌 Fetching VM IP..."
+      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
+      echo "📌 VM IP is $VM_IP"
 
       echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
       ssh -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no cloudbuild@$VM_IP \
