@@ -4,15 +4,9 @@ provider "google" {
   zone    = "us-central1-a"
 }
 
-# Reserve static IP
-resource "google_compute_address" "web_static_ip" {
-  name = "web-static-ip"
-}
-
 # VPC
 resource "google_compute_network" "vpc" {
   name = "web-vpc"
-  auto_create_subnetworks = false
 }
 
 # Public subnet
@@ -32,19 +26,27 @@ resource "google_compute_subnetwork" "private" {
   private_ip_google_access = true
 }
 
-# Firewall
+# Static external IP
+resource "google_compute_address" "web_static_ip" {
+  name   = "web-static-ip"
+  region = "us-central1"
+}
+
+# Firewall for HTTP/HTTPS
 resource "google_compute_firewall" "allow_http_https" {
   name    = "allow-http-https"
   network = google_compute_network.vpc.name
+
   allow {
     protocol = "tcp"
     ports    = ["80", "443"]
   }
-  direction = "INGRESS"
+
   source_ranges = ["0.0.0.0/0"]
+  direction     = "INGRESS"
 }
 
-# Compute Engine instance (in public subnet)
+# VM
 resource "google_compute_instance" "web_server" {
   name         = "web-server"
   machine_type = "e2-micro"
@@ -78,19 +80,23 @@ resource "google_compute_instance" "web_server" {
 resource "google_monitoring_alert_policy" "cpu_alert" {
   display_name = "High CPU Alert"
   combiner     = "OR"
-  notification_channels = []
+  notification_channels = [] # Add channels later if needed
 
   conditions {
     display_name = "VM CPU > 80%"
     condition_threshold {
-      filter = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.web_server.id}\""
-      comparison = "COMPARISON_GT"
+      filter          = "metric.type=\"compute.googleapis.com/instance/cpu/utilization\" AND resource.label.instance_id=\"${google_compute_instance.web_server.id}\""
+      comparison      = "COMPARISON_GT"
       threshold_value = 0.8
-      duration = "60s"
+      duration        = "60s"
       aggregations {
-        alignment_period = "60s"
-        per_series_aligner = "ALIGN_MEAN"
+        alignment_period    = "60s"
+        per_series_aligner  = "ALIGN_MEAN"
       }
     }
   }
+}
+
+output "static_ip" {
+  value = google_compute_address.web_static_ip.address
 }
