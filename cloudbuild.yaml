@@ -1,72 +1,46 @@
 steps:
 
-# 1️⃣ Run automated tests
+# 1️⃣ Automated tests
 - name: 'gcr.io/cloud-builders/docker'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
-      set -e
-      echo "🚀 Running automated tests..."
+      echo "🚀 Running tests..."
       chmod +x test.sh
       ./test.sh
 
-# 2️⃣ Download SSH keys + SCP files to VM
+# 2️⃣ SCP app files
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
-      set -e
-      echo "⬇️ Downloading SSH keys from Cloud Storage..."
-      gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key /workspace/cloudbuild_vm_key
-      gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key.pub /workspace/cloudbuild_vm_key.pub
-      chmod 400 /workspace/cloudbuild_vm_key
+      echo "⬇ Download SSH key"
+      gsutil cp gs://graphite-store-463414-p2_cloudbuild/cloudbuild_vm_key /workspace/key
+      chmod 400 /workspace/key
 
-      echo "📌 Fetching VM IP..."
-      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-      if [[ -z "$VM_IP" ]]; then
-        echo "❌ Could not fetch VM IP. Exiting."
-        exit 1
-      fi
-      echo "📌 VM IP is $VM_IP"
+      echo "📌 Using static IP"
+      STATIC_IP=$(gcloud compute addresses describe web-static-ip --region=us-central1 --format='value(address)')
+      echo "STATIC_IP=$STATIC_IP"
 
-      echo "⏳ Sleeping 60 seconds for VM readiness..."
-      sleep 60
-
-      echo "⏳ Attempting SCP with static SSH key..."
       for i in {1..5}; do
-        scp -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no \
-          -r ./app/* cloudbuild@$VM_IP:/var/www/html && break || {
-            echo "⚠️ Attempt $i failed. Retrying in 10s..."
-            sleep 10
-          }
+        scp -i /workspace/key -o StrictHostKeyChecking=no -r ./app/* cloudbuild@$STATIC_IP:/var/www/html && break || {
+          echo "⚠ Attempt $i failed. Retrying..."
+          sleep 10
+        }
       done
 
-# 3️⃣ Restart Nginx + Enable Cloud Logging agent
+# 3️⃣ Restart Nginx
 - name: 'gcr.io/cloud-builders/gcloud'
   entrypoint: 'bash'
   args:
     - '-c'
     - |
-      set -e
-      echo "📌 Fetching VM IP..."
-      VM_IP=$(gcloud compute instances describe web-server --zone=us-central1-a --format='get(networkInterfaces[0].accessConfigs[0].natIP)')
-      if [[ -z "$VM_IP" ]]; then
-        echo "❌ Could not fetch VM IP. Exiting."
-        exit 1
-      fi
-      echo "📌 VM IP is $VM_IP"
-
-      echo "🔄 Restarting Nginx and enabling Cloud Logging agent..."
-      ssh -i /workspace/cloudbuild_vm_key -o StrictHostKeyChecking=no cloudbuild@$VM_IP \
-      "sudo systemctl restart nginx && \
-       sudo apt-get update && \
-       sudo apt-get install -y google-fluentd && \
-       sudo systemctl enable google-fluentd && \
-       sudo systemctl restart google-fluentd"
+      STATIC_IP=$(gcloud compute addresses describe web-static-ip --region=us-central1 --format='value(address)')
+      ssh -i /workspace/key -o StrictHostKeyChecking=no cloudbuild@$STATIC_IP \
+      "sudo systemctl restart nginx"
 
 timeout: 900s
-
 options:
   logging: CLOUD_LOGGING_ONLY
