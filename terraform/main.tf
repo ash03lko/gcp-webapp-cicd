@@ -2,7 +2,7 @@ provider "google" {
   project     = var.project_id
   region      = var.region
   zone        = var.zone
-  credentials = file("~/.config/gcloud/application_default_credentials.json")
+  credentials = credentials = file("${pathexpand("~/.config/gcloud/application_default_credentials.json")}")
 }
 
 # VPC
